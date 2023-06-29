@@ -19,3 +19,6 @@ if any Stealer/RAT tried to access your browser files you would get a notificati
 
 # Installation 
 you can find the release <a href="https://github.com/AdvDebug/NoMoreCookies/releases/tag/NoMoreCookies_1.0">here</a>, after you extract the files execute NoMoreCookiesInstaller.exe which will give you the option to both install and uninstall NoMoreCookies, and after installing/uninstalling it's prefered to restart your system.
+
+# Notice
+The Program, Libraries, etc. are licensed under MIT License.
