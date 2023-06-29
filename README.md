@@ -29,5 +29,9 @@ if any Stealer/RAT tried to access your browser files you would get a notificati
 
 if you are a C#/C++ developer and want to contribute, make a fork and make a pull request with the mentioning of the changes you have made and why do you think this change is a good idea.
 
+#### Disclaimer
+
+This Project is for educational purposes only, me, the developer are not responsible for any kind of misuse.
+
 #### License
 The Program, Libraries, etc. are licensed under MIT License.
