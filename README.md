@@ -25,5 +25,9 @@ if any Stealer/RAT tried to access your browser files you would get a notificati
 
 ![NoMoreCookies](https://github.com/AdvDebug/NoMoreCookies/assets/90452585/ad4d07bf-2b84-488f-8bad-cf8241c89d84)
 
+#### Contribution
+
+if you are a C#/C++ developer and want to contribute, make a fork and make a pull request with the mentioning of the changes you have made and why do you think this change is a good idea.
+
 #### License
 The Program, Libraries, etc. are licensed under MIT License.
