@@ -10,7 +10,7 @@ Works by hooking NtCreateFile and prevent accessing browser files, in addition t
 * <a href="https://github.com/NYAN-x-CAT/AsyncRAT-C-Sharp">AsyncRAT</a>
 * <a href="https://github.com/quasar/Quasar">Quasar RAT</a>
 * <a href="https://github.com/swagkarna/StormKitty">StormKitty</a>
-* <a href="https://github.com/swagkarna/StormKitty">FireFox-Thief</a>
+* <a href="https://github.com/LimerBoy/FireFox-Thief">FireFox-Thief</a>
 * <a href="https://github.com/qwqdanchun/DcRat">DcRat</a>
 
 and it should work against other popular stealers.
