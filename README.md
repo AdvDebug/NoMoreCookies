@@ -1,4 +1,8 @@
 # NoMoreCookies
+<p align="center">
+![NoMoreCookies](https://github.com/AdvDebug/NoMoreCookies/assets/90452585/243e8d7a-23f7-4249-a187-276a0d753715)
+
+</p>
 Browser Protector against various stealers, written in C/C++.
 
 Works by hooking NtCreateFile and prevent accessing browser files, in addition to prevent it's unhooking. compatible with various games and software.
