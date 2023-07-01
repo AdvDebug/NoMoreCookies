@@ -33,5 +33,12 @@ if you are a C#/C++ developer and want to contribute, make a fork and make a pul
 
 This Project is for educational purposes only, me, the developer are not responsible for any kind of misuse.
 
+### Donation
+if you liked my work, feel free to donate!
+
+BTC: bc1qt4959hf9t6k940u8l4x3khw8gfrrp5znwu29yw
+
+ETH: 0x2dD43a77034361C1Dd702343BF6f4a42BF741b2F
+
 # License
 The Program, Libraries, etc. are licensed under MIT License.
