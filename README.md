@@ -31,7 +31,7 @@ if you are a C#/C++ developer and want to contribute, make a fork and make a pul
 
 ### Disclaimer
 
-This Project is for educational purposes only, me, the developer are not responsible for any kind of misuse.
+This Project is for educational purposes only. me, the developer, are not responsible for any kind of misuse.
 
 ### Donation
 if you liked my work, feel free to donate!
