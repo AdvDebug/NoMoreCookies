@@ -16,7 +16,7 @@ Works by hooking NtCreateFile and prevent accessing browser files, in addition t
 
 and it should work against other popular stealers.
 
-Supported Browser:
+Supported Browsers:
 
 * <a href="https://www.mozilla.org/en-US/firefox/browsers">Firefox</a>
 * <a href="https://brave.com">Brave<a/>
