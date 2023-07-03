@@ -16,6 +16,13 @@ Works by hooking NtCreateFile and prevent accessing browser files, in addition t
 
 and it should work against other popular stealers.
 
+Supported Browser:
+
+* <a href="https://www.mozilla.org/en-US/firefox/browsers">Firefox</a>
+* <a href="https://brave.com">Brave<a/>
+* <a href="https://www.google.com/chrome">Chrome</a>
+* <a href="https://www.microsoft.com/en-us/edge">Microsoft Edge</a>
+
 #### Installation 
 you can find the release <a href="https://github.com/AdvDebug/NoMoreCookies/releases/tag/NoMoreCookies_1.2">here</a>, after you extract the files execute NoMoreCookiesInstaller.exe which will give you the option to both install and uninstall NoMoreCookies, and after installing/uninstalling it's prefered to restart your system.
 
