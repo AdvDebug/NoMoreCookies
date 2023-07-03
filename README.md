@@ -22,9 +22,11 @@ Supported Browsers:
 * <a href="https://brave.com">Brave<a/>
 * <a href="https://www.google.com/chrome">Chrome</a>
 * <a href="https://www.microsoft.com/en-us/edge">Microsoft Edge</a>
+* <a href="https://browser.yandex.com">Yandex</a>
+* <a href="https://www.opera.com">Opera</a>
 
 #### Installation 
-you can find the release <a href="https://github.com/AdvDebug/NoMoreCookies/releases/tag/NoMoreCookies_1.2">here</a>, after you extract the files execute NoMoreCookiesInstaller.exe which will give you the option to both install and uninstall NoMoreCookies, and after installing/uninstalling it's prefered to restart your system.
+you can find the release <a href="https://github.com/AdvDebug/NoMoreCookies/releases/tag/NoMoreCookies_1.3">here</a>, after you extract the files execute NoMoreCookiesInstaller.exe which will give you the option to both install and uninstall NoMoreCookies, and after installing/uninstalling it's prefered to restart your system.
 
 #### Showcase
 if any Stealer/RAT tried to access your browser files you would get a notification, preventing the Stealer/RAT from accessing it and warning you about it.
