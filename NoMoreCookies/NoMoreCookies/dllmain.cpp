@@ -15,17 +15,23 @@
 #define STATUS_ACCESS_DENIED 0xC0000022
 
 typedef NTSTATUS(NTAPI* RealNtCreateFile)(PHANDLE, ACCESS_MASK, POBJECT_ATTRIBUTES, PIO_STATUS_BLOCK, PLARGE_INTEGER, ULONG, ULONG, ULONG, ULONG, PVOID, ULONG);
-typedef NTSTATUS(WINAPI* RealNtResumeThread)(HANDLE, PULONG);
+typedef NTSTATUS(NTAPI* RealNtResumeThread)(HANDLE, PULONG);
 typedef NTSTATUS(NTAPI* RealNtSetValueKey)(HANDLE, PUNICODE_STRING, ULONG, ULONG, PVOID, ULONG);
+typedef NTSTATUS(NTAPI* RealNtProtectVirtualMemory)(HANDLE, PVOID*, PULONG, ULONG, PULONG);
+typedef NTSTATUS(NTAPI* RealNtWriteVirtualMemory)(HANDLE, PVOID, LPCVOID, SIZE_T, PSIZE_T);
 HANDLE Mutex = CreateMutex(NULL, FALSE, NULL);
 HANDLE Mutex2 = CreateMutex(NULL, FALSE, NULL);
 HANDLE Mutex3 = CreateMutex(NULL, FALSE, NULL);
+HANDLE Mutex4 = CreateMutex(NULL, FALSE, NULL);
+HANDLE Mutex5 = CreateMutex(NULL, FALSE, NULL);
 BOOL XMode = FALSE; //you set the mode you want
 HMODULE Module = NULL;
 
 RealNtCreateFile OriginalNtCreateFile = nullptr;
 RealNtResumeThread OriginalNtResumeThread = nullptr;
 RealNtSetValueKey OriginalNtSetValueKey = nullptr;
+RealNtProtectVirtualMemory OriginalNtProtectVirtualMemory = nullptr;
+RealNtWriteVirtualMemory OriginalNtWriteVirtualMemory = nullptr;
 
 BOOL IsSigned(HANDLE hProcess)
 {
@@ -92,7 +98,8 @@ BOOL IsRunningAsService()
     return IsService;
 }
 
-bool hasEnding(std::string const& fullString, std::string const& ending) {
+bool hasEnding(std::string const& fullString, std::string const& ending)
+{
     if (fullString.length() >= ending.length())
     {
         return (0 == fullString.compare(fullString.length() - ending.length(), ending.length(), ending));
@@ -134,8 +141,8 @@ BOOL IsNoMoreCookiesInstaller()
                 Sum += Buffer[i];
             }
         }
-        WCHAR CheckSum[12];
-        swprintf_s(CheckSum, 12, L"%08X", Sum);
+        WCHAR CheckSum[9];
+        swprintf_s(CheckSum, 9, L"%08X", Sum);
         if (wcscmp(CheckSum, L"0005BBE6") == 0)
         {
             return TRUE;
@@ -262,34 +269,62 @@ NTSTATUS NTAPI HookedNtSetValueKey(HANDLE KeyHandle, PUNICODE_STRING ValueName, 
     ReleaseMutex(Mutex3);
     return OriginalNtSetValueKey(KeyHandle, ValueName, TitleIndex, Type, Data, DataSize);
 }
+FARPROC NtCreateFileAddress = NULL;
+FARPROC NtResumeThreadAddress = NULL;
+FARPROC NtSetValueKeyAddress = NULL;
+FARPROC NtWriteVirtualMemory = NULL;
+FARPROC NtProtectVirtualMemory = NULL;
+
+NTSTATUS NTAPI HookedNtProtectVirtualMemory(HANDLE ProcessHandle, PVOID* BaseAddress, PULONG NumberOfBytesToProtect, ULONG NewAccessProtection, PULONG OldAccessProtection)
+{
+    WaitForSingleObject(Mutex4, INFINITE);
+    if (GetProcessId(ProcessHandle) == GetCurrentProcessId())
+    {
+        if ((int)(*BaseAddress) == (int)(NtCreateFileAddress) || (int)(*BaseAddress) == (int)(NtResumeThreadAddress) || (int)(*BaseAddress) == (int)(NtSetValueKeyAddress) || (int)(*BaseAddress) == (int)(NtWriteVirtualMemory) || (int)(*BaseAddress) == (int)(NtProtectVirtualMemory))
+        {
+            ReleaseMutex(Mutex4);
+            return STATUS_ACCESS_DENIED;
+        }
+    }
+    ReleaseMutex(Mutex4);
+    return OriginalNtProtectVirtualMemory(ProcessHandle, BaseAddress, NumberOfBytesToProtect, NewAccessProtection, OldAccessProtection);
+}
+
+NTSTATUS NTAPI HookedNtWriteVirtualMemory(HANDLE ProcessHandle, PVOID BaseAddress, LPCVOID Buffer, SIZE_T BufferSize, PSIZE_T NumberOfBytesWritten)
+{
+    WaitForSingleObject(Mutex5, INFINITE);
+    if (GetProcessId(ProcessHandle) == GetCurrentProcessId())
+    {
+        if ((int)(BaseAddress) == (int)(NtCreateFileAddress) || (int)(BaseAddress) == (int)(NtResumeThreadAddress) || (int)(BaseAddress) == (int)(NtSetValueKeyAddress) || (int)(BaseAddress) == (int)(NtWriteVirtualMemory) || (int)(BaseAddress) == (int)(NtProtectVirtualMemory))
+        {
+            ReleaseMutex(Mutex5);
+            return STATUS_ACCESS_DENIED;
+        }
+    }
+    ReleaseMutex(Mutex5);
+    return OriginalNtWriteVirtualMemory(ProcessHandle, BaseAddress, Buffer, BufferSize, NumberOfBytesWritten);
+}
 
 void CheckHook()
 {
+    NtCreateFileAddress = GetProcAddress(GetModuleHandleW(L"ntdll.dll"), "NtCreateFile");
+    NtResumeThreadAddress = GetProcAddress(GetModuleHandleW(L"ntdll.dll"), "NtResumeThread");
+    NtSetValueKeyAddress = GetProcAddress(GetModuleHandleW(L"ntdll.dll"), "NtSetValueKey");
+    NtWriteVirtualMemory = GetProcAddress(GetModuleHandleW(L"ntdll.dll"), "NtWriteVirtualMemory");
+    NtProtectVirtualMemory = GetProcAddress(GetModuleHandleW(L"ntdll.dll"), "NtProtectVirtualMemory");
+    const char* Functions[] = { "NtCreateFile", "NtResumeThread", "NtSetValueKey", "NtProtectVirtualMemory", "NtWriteVirtualMemory"};
+    const int Size = sizeof(Functions)/sizeof(Functions[0]);
     while (true)
     {
         Sleep(2000);
-        FARPROC NtCreateFileAddress = GetProcAddress(GetModuleHandleW(L"ntdll.dll"), "NtCreateFile");
-        LPVOID NtCreateFileStartAddress = (LPVOID)NtCreateFileAddress;
-        BYTE* StartAddressBytes = (BYTE*)NtCreateFileStartAddress;
-        if (StartAddressBytes[0] != 0xE9 || StartAddressBytes[0] == 0xCC)
+        for (int i = 0; i < Size; i++)
         {
-            ExitProcess(0);
-        }
-
-        FARPROC NtResumeThreadAddress = GetProcAddress(GetModuleHandleW(L"ntdll.dll"), "NtResumeThread");
-        LPVOID NtResumeThreadStartAddress = (LPVOID)NtResumeThreadAddress;
-        BYTE* StartAddressBytes2 = (BYTE*)NtResumeThreadStartAddress;
-        if (StartAddressBytes2[0] != 0xE9 || StartAddressBytes2[0] == 0xCC)
-        {
-            ExitProcess(0);
-        }
-
-        FARPROC NtSetValueKeyAddress = GetProcAddress(GetModuleHandleW(L"ntdll.dll"), "NtSetValueKey");
-        LPVOID NtSetValueKeyStartAddress = (LPVOID)NtResumeThreadAddress;
-        BYTE* StartAddressBytes3= (BYTE*)NtSetValueKeyStartAddress;
-        if (StartAddressBytes3[0] != 0xE9 || StartAddressBytes3[0] == 0xCC)
-        {
-            ExitProcess(0);
+            FARPROC FunctionAddress = GetProcAddress(GetModuleHandleW(L"ntdll.dll"), Functions[i]);
+            BYTE* StartAddressBytes = (BYTE*)FunctionAddress;
+            if (StartAddressBytes[0] != 0xE9 || StartAddressBytes[0] == 0xCC)
+            {
+                ExitProcess(0);
+            }
         }
     }
 }
@@ -306,6 +341,10 @@ void HookingThread()
         DetourAttach(&(LPVOID&)OriginalNtResumeThread, HookedNtResumeThread);
         OriginalNtSetValueKey = reinterpret_cast<RealNtSetValueKey>(DetourFindFunction("ntdll.dll", "NtSetValueKey"));
         DetourAttach(&(LPVOID&)OriginalNtSetValueKey, HookedNtSetValueKey);
+        OriginalNtProtectVirtualMemory = reinterpret_cast<RealNtProtectVirtualMemory>(DetourFindFunction("ntdll.dll", "NtProtectVirtualMemory"));
+        DetourAttach(&(LPVOID&)OriginalNtProtectVirtualMemory, HookedNtProtectVirtualMemory);
+        OriginalNtWriteVirtualMemory = reinterpret_cast<RealNtWriteVirtualMemory>(DetourFindFunction("ntdll.dll", "NtWriteVirtualMemory"));
+        DetourAttach(&(LPVOID&)OriginalNtWriteVirtualMemory, HookedNtWriteVirtualMemory);
         DetourTransactionCommit();
         CreateThread(NULL, 0, (LPTHREAD_START_ROUTINE)CheckHook, NULL, 0, NULL);
     }
