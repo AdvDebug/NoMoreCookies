@@ -4,7 +4,7 @@
 </p>
 Browser Protector against various stealers, written in C# & C/C++.
 
-Works by hooking NtCreateFile and prevent accessing browser files, in addition to prevent it's unhooking. compatible with various games and software.
+Works by hooking NtCreateFile and prevent accessing browser files, in addition to prevent it's unhooking. compatible with various games and software. (contributions are very welcomed)
 
 #### Stealers/RATs Tested
 * <a href="https://github.com/NYAN-x-CAT/AsyncRAT-C-Sharp">AsyncRAT</a>
