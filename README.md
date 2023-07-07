@@ -16,6 +16,7 @@ Works by hooking NtCreateFile and prevent accessing browser files, in addition t
 * Raccoon Stealer
 * EdgeGuard
 * Vidar
+* RedLine
 
 and it should work against other popular stealers.
 
