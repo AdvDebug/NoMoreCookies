@@ -9,9 +9,11 @@
 #include <SoftPub.h>
 #include <detours.h>
 #include <shellapi.h>
-#pragma comment(lib, "Wintrust.lib")
+#include <fileapi.h>
+#pragma comment(lib, "wintrust.lib")
 #pragma comment(lib, "advapi32.lib")
 #pragma comment(lib, "shell32.lib")
+#pragma comment(lib, "version.lib")
 #define STATUS_ACCESS_DENIED 0xC0000022
 
 typedef NTSTATUS(NTAPI* RealNtCreateFile)(PHANDLE, ACCESS_MASK, POBJECT_ATTRIBUTES, PIO_STATUS_BLOCK, PLARGE_INTEGER, ULONG, ULONG, ULONG, ULONG, PVOID, ULONG);
@@ -24,7 +26,7 @@ HANDLE Mutex2 = CreateMutex(NULL, FALSE, NULL);
 HANDLE Mutex3 = CreateMutex(NULL, FALSE, NULL);
 HANDLE Mutex4 = CreateMutex(NULL, FALSE, NULL);
 HANDLE Mutex5 = CreateMutex(NULL, FALSE, NULL);
-BOOL XMode = FALSE; //you set the mode you want
+BOOL XMode = TRUE; //you set the mode you want
 HMODULE Module = NULL;
 
 RealNtCreateFile OriginalNtCreateFile = nullptr;
@@ -107,18 +109,74 @@ bool hasEnding(std::string const& fullString, std::string const& ending)
     return false;
 }
 
+bool IsBrowser(char* FileName)
+{
+    BOOL Signed = IsSigned(GetCurrentProcess());
+    if (hasEnding(FileName, "msedge.exe") && Signed)
+    {
+        if (GetModuleHandle(L"msedge.dll") && GetModuleHandle(L"msedge_elf.dll"))
+        {
+            return true;
+        }
+    }
+
+    if (hasEnding(FileName, "firefox.exe") && Signed)
+    {
+        if (GetModuleHandle(L"mozglue.dll") != 0 && GetModuleHandle(L"nss3.dll") != 0)
+        {
+            return true;
+        }
+    }
+
+    if (hasEnding(FileName, "chrome.exe") && Signed)
+    {
+        if (GetModuleHandle(L"chrome.dll") != 0 && GetModuleHandle(L"chrome_elf.dll") != 0)
+        {
+            return true;
+        }
+    }
+
+    if (hasEnding(FileName, "brave.exe") && Signed)
+    {
+        if (GetModuleHandle(L"chrome.dll") != 0 && GetModuleHandle(L"chrome_elf.dll") != 0)
+        {
+            return true;
+        }
+    }
+
+    if (hasEnding(FileName, "browser.exe") && Signed)
+    {
+        if (GetModuleHandle(L"browser.dll") != 0 && GetModuleHandle(L"browser_elf.dll") != 0)
+        {
+            return true;
+        }
+    }
+
+    if (hasEnding(FileName, "opera.exe") && Signed)
+    {
+        if (GetModuleHandle(L"opera.dll") != 0 && GetModuleHandle(L"opera_elf.dll") != 0)
+        {
+            return true;
+        }
+    }
+    return false;
+}
+
 BOOL IsProcessAllowed()
 {
     char FileName[MAX_PATH + 1];
     GetModuleFileNameExA(GetCurrentProcess(), NULL, FileName, MAX_PATH);
     BOOL Signed = IsSigned(GetCurrentProcess());
-    if (XMode && Signed)
+    if (XMode)
     {
-        if (hasEnding(FileName, "msedge.exe") || hasEnding(FileName, "firefox.exe") || hasEnding(FileName, "chrome.exe") || hasEnding(FileName, "brave.exe") || hasEnding(FileName, "browser.exe") || hasEnding(FileName, "opera.exe"))
+        if (IsBrowser(FileName))
             return true;
     }
-    if (hasEnding(FileName, "javaw.exe") && Signed || hasEnding(FileName, "py.exe") && Signed || hasEnding(FileName, "python.exe") && Signed || hasEnding(FileName, "pythonw.exe") && Signed || hasEnding(FileName, "explorer.exe") && Signed)
-        return false;
+    else
+    {
+        if (hasEnding(FileName, "javaw.exe") && Signed || hasEnding(FileName, "py.exe") && Signed || hasEnding(FileName, "python.exe") && Signed || hasEnding(FileName, "pythonw.exe") && Signed || hasEnding(FileName, "explorer.exe") && Signed)
+            return false;
+    }
     if (XMode)
         return false;
     return true;
@@ -143,7 +201,7 @@ BOOL IsNoMoreCookiesInstaller()
         }
         WCHAR CheckSum[9];
         swprintf_s(CheckSum, 9, L"%08X", Sum);
-        if (wcscmp(CheckSum, L"0005BBE6") == 0)
+        if (wcscmp(CheckSum, L"00063F24") == 0)
         {
             return TRUE;
         }
