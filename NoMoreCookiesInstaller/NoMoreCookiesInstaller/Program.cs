@@ -11,17 +11,18 @@ namespace NoMoreCookiesInstaller
         {
             try
             {
-                using (ManagementObjectSearcher Searcher = new ManagementObjectSearcher("root\\CIMV2\\Security\\MicrosoftTpm", "SELECT * FROM Win32_SecureBoot"))
+                RegistryKey SecureBoot = Registry.LocalMachine.OpenSubKey(@"SYSTEM\CurrentControlSet\Control\SecureBoot\State", true);
+                if(SecureBoot != null)
                 {
-                    foreach (var QueryObject in Searcher.Get())
-                    {
-                        var SecureBoot = (bool)QueryObject["SecureBootEnabled"];
-                        return SecureBoot;
-                    }
+                    object SecureBootState = SecureBoot.GetValue("UEFISecureBootEnabled");
+                    if ((int)SecureBootState == 1)
+                        return true;
                 }
             }
-            catch
+            catch(Exception ex)
             {
+                Console.Write("Error: " + ex.Message);
+                Console.ReadLine();
                 return false;
             }
             return false;
