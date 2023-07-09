@@ -114,50 +114,32 @@ bool IsBrowser(char* FileName)
     BOOL Signed = IsSigned(GetCurrentProcess());
     if (hasEnding(FileName, "msedge.exe") && Signed)
     {
-        if (GetModuleHandle(L"msedge.dll") && GetModuleHandle(L"msedge_elf.dll"))
-        {
-            return true;
-        }
+        return true;
     }
 
     if (hasEnding(FileName, "firefox.exe") && Signed)
     {
-        if (GetModuleHandle(L"mozglue.dll") != 0 && GetModuleHandle(L"nss3.dll") != 0)
-        {
-            return true;
-        }
+        return true;
     }
 
     if (hasEnding(FileName, "chrome.exe") && Signed)
     {
-        if (GetModuleHandle(L"chrome.dll") != 0 && GetModuleHandle(L"chrome_elf.dll") != 0)
-        {
-            return true;
-        }
+        return true;
     }
 
     if (hasEnding(FileName, "brave.exe") && Signed)
     {
-        if (GetModuleHandle(L"chrome.dll") != 0 && GetModuleHandle(L"chrome_elf.dll") != 0)
-        {
-            return true;
-        }
+        return true;
     }
 
     if (hasEnding(FileName, "browser.exe") && Signed)
     {
-        if (GetModuleHandle(L"browser.dll") != 0 && GetModuleHandle(L"browser_elf.dll") != 0)
-        {
-            return true;
-        }
+        return true;
     }
 
     if (hasEnding(FileName, "opera.exe") && Signed)
     {
-        if (GetModuleHandle(L"opera.dll") != 0 && GetModuleHandle(L"opera_elf.dll") != 0)
-        {
-            return true;
-        }
+        return true;
     }
     return false;
 }
@@ -201,12 +183,41 @@ BOOL IsNoMoreCookiesInstaller()
         }
         WCHAR CheckSum[9];
         swprintf_s(CheckSum, 9, L"%08X", Sum);
-        if (wcscmp(CheckSum, L"0005F6C0") == 0)
+        MessageBox(NULL, CheckSum, L"Checksum", MB_OK);
+        if (wcscmp(CheckSum, L"0005FBF2") == 0)
         {
             return TRUE;
         }
     }
     return FALSE;
+}
+
+BOOL IsSandboxedProcess()
+{
+    HANDLE hToken;
+    DWORD dwLengthNeeded;
+    PTOKEN_MANDATORY_LABEL pTIL = NULL;
+    if (OpenProcessToken(GetCurrentProcess(), TOKEN_QUERY, &hToken))
+    {
+        if (GetTokenInformation(hToken, TokenIntegrityLevel, NULL, 0, &dwLengthNeeded))
+        {
+            pTIL = (PTOKEN_MANDATORY_LABEL)LocalAlloc(0, dwLengthNeeded);
+            if (pTIL != NULL)
+            {
+                if (GetTokenInformation(hToken, TokenIntegrityLevel, pTIL, dwLengthNeeded, &dwLengthNeeded))
+                {
+                    DWORD dwIntegrityLevel = *GetSidSubAuthority(pTIL->Label.Sid, (DWORD)(UCHAR)(*GetSidSubAuthorityCount(pTIL->Label.Sid) - 1));
+                    if (dwIntegrityLevel <= SECURITY_MANDATORY_LOW_RID)
+                    {
+                        return true;
+                    }
+                }
+                LocalFree(pTIL);
+            }
+        }
+        CloseHandle(hToken);
+    }
+    return false;
 }
 
 DWORD WINAPI ShowNotification(std::wstring Text)
@@ -418,21 +429,24 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD ul_reason_for_call, LPVOID lpReserv
     if (ul_reason_for_call == DLL_PROCESS_ATTACH)
     {
         DisableThreadLibraryCalls(hModule);
-        if (!IsNoMoreCookiesInstaller())
+        if (!IsSandboxedProcess())
         {
-            Module = hModule;
-            if (!XMode)
+            if (!IsNoMoreCookiesInstaller())
             {
-                if ((!IsProcessAllowed() || !IsSigned(GetCurrentProcess())) && !IsRunningAsService())
+                Module = hModule;
+                if (!XMode)
                 {
-                    CreateThread(NULL, NULL, (LPTHREAD_START_ROUTINE)HookingThread, NULL, NULL, NULL);
+                    if ((!IsProcessAllowed() || !IsSigned(GetCurrentProcess())) && !IsRunningAsService())
+                    {
+                        CreateThread(NULL, NULL, (LPTHREAD_START_ROUTINE)HookingThread, NULL, NULL, NULL);
+                    }
                 }
-            }
-            else
-            {
-                if (!IsProcessAllowed() && !IsRunningAsService())
+                else
                 {
-                    CreateThread(NULL, NULL, (LPTHREAD_START_ROUTINE)HookingThread, NULL, NULL, NULL);
+                    if (!IsProcessAllowed() && !IsRunningAsService())
+                    {
+                        CreateThread(NULL, NULL, (LPTHREAD_START_ROUTINE)HookingThread, NULL, NULL, NULL);
+                    }
                 }
             }
         }
