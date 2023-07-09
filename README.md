@@ -30,7 +30,7 @@ Supported Browsers:
 * <a href="https://www.opera.com">Opera</a>
 
 #### Installation 
-you can find the release <a href="https://github.com/AdvDebug/NoMoreCookies/releases/tag/NoMoreCookies_1.5">here</a>, after you extract the files execute NoMoreCookiesInstaller.exe which will give you the option to both install and uninstall NoMoreCookies, and after installing/uninstalling it's preferred to restart your system.
+you can find the release <a href="https://github.com/AdvDebug/NoMoreCookies/releases/tag/NoMoreCookies_1.6">here</a>, after you extract the files execute NoMoreCookiesInstaller.exe which will give you the option to both install and uninstall NoMoreCookies, and after installing/uninstalling it's preferred to restart your system.
 
 #### Showcase
 if any Stealer/RAT tried to access your browser files you would get a notification, preventing the Stealer/RAT from accessing it and warning you about it.
@@ -41,6 +41,8 @@ if any Stealer/RAT tried to access your browser files you would get a notificati
 ### Contribution
 
 if you are a C#/C++ developer and want to contribute, make a fork and make a pull request with the mentioning of the changes you have made and why do you think this change is a good idea.
+
+you can find <a href="https://github.com/AdvDebug/NoMoreCookies/blob/main/CONTRIBUTORS.md">here</a> all the contributors that contributed to this project.
 
 ### Disclaimer
 
