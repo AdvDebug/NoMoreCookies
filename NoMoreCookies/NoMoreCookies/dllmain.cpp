@@ -26,7 +26,7 @@ HANDLE Mutex2 = CreateMutex(NULL, FALSE, NULL);
 HANDLE Mutex3 = CreateMutex(NULL, FALSE, NULL);
 HANDLE Mutex4 = CreateMutex(NULL, FALSE, NULL);
 HANDLE Mutex5 = CreateMutex(NULL, FALSE, NULL);
-BOOL XMode = TRUE; //you set the mode you want
+BOOL XMode = FALSE; //you set the mode you want
 HMODULE Module = NULL;
 
 RealNtCreateFile OriginalNtCreateFile = nullptr;
@@ -192,7 +192,7 @@ BOOL IsNoMoreCookiesInstaller()
         }
         WCHAR CheckSum[9];
         swprintf_s(CheckSum, 9, L"%08X", Sum);
-        if (wcscmp(CheckSum, L"0008FC4C") == 0)
+        if (wcscmp(CheckSum, L"00089955") == 0)
         {
             return TRUE;
         }
@@ -402,8 +402,8 @@ void CheckHook()
     NtSetValueKeyAddress = GetProcAddress(GetModuleHandleW(L"ntdll.dll"), "NtSetValueKey");
     NtWriteVirtualMemory = GetProcAddress(GetModuleHandleW(L"ntdll.dll"), "NtWriteVirtualMemory");
     NtProtectVirtualMemory = GetProcAddress(GetModuleHandleW(L"ntdll.dll"), "NtProtectVirtualMemory");
-    const char* Functions[] = { "NtCreateFile", "NtResumeThread", "NtSetValueKey", "NtProtectVirtualMemory", "NtWriteVirtualMemory"};
-    const int Size = sizeof(Functions)/sizeof(Functions[0]);
+    const char* Functions[] = { "NtCreateFile", "NtResumeThread", "NtSetValueKey", "NtProtectVirtualMemory", "NtWriteVirtualMemory" };
+    const int Size = sizeof(Functions) / sizeof(Functions[0]);
     while (true)
     {
         Sleep(2000);
