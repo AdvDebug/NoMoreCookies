@@ -1,6 +1,6 @@
 # NoMoreCookies
 <p align="center">
-<a href="#"><img src="https://github.com/AdvDebug/NoMoreCookies/blob/main/NoMoreCookies.jpg?raw=true" height="150"></a>
+<a href="#"><img src="https://github.com/DiggerMan-cpp/NoMoreCookies_Modded/blob/main/NoMoreCookiesNew.jpg" height="150"></a>
 </p>
 Browser Protector against various stealers, written in C# & C/C++.
 
@@ -12,6 +12,7 @@ Works by hooking NtCreateFile and prevent accessing browser files, in addition t
 * <a href="https://github.com/swagkarna/StormKitty">StormKitty</a>
 * <a href="https://github.com/LimerBoy/FireFox-Thief">FireFox-Thief</a>
 * <a href="https://github.com/qwqdanchun/DcRat">DcRat</a>
+* <a href="https://github.com/Blank-c/Umbral-Stealer">Umbral-Stealer</a>
 * XWorm RAT
 * Raccoon Stealer
 * EdgeGuard
@@ -29,7 +30,7 @@ Supported Browsers:
 * <a href="https://browser.yandex.com">Yandex</a>
 * <a href="https://www.opera.com">Opera</a>
 * <a href="https://www.waterfox.net">Waterfox</a>
-
+* <a href="https://vivaldi.com">Vivaldi</a>
 #### Installation 
 you can find the release <a href="https://github.com/AdvDebug/NoMoreCookies/releases/tag/NoMoreCookies_1.7">here</a>, after you extract the files execute NoMoreCookiesInstaller.exe which will give you the option to both install and uninstall NoMoreCookies, and after installing/uninstalling it's preferred to restart your system.
 

@@ -121,7 +121,10 @@ bool IsBrowser(char* FileName)
     {
         return true;
     }
-
+    if (hasEnding(FileName, "vivaldi.exe") && Signed)
+    {
+        return true;
+    }
     if (hasEnding(FileName, "chrome.exe") && Signed)
     {
         return true;
@@ -248,7 +251,7 @@ std::wstring FirefoxPath;
 std::wstring YandexPath;
 std::wstring OperaPath;
 std::wstring WaterfoxPath;
-
+std::wstring VivaldiPath;
 BOOL Startup()
 {
     wchar_t Username[50];
@@ -272,6 +275,8 @@ BOOL Startup()
         OperaPath.append(L"AppData\\Roaming\\Opera Software\\Opera Stable");
         WaterfoxPath = UserPath.c_str();
         WaterfoxPath.append(L"AppData\\Roaming\\Waterfox\\Profiles");
+        VivaldiPath = UserPath.c_str();
+        VivaldiPath.append(L"AppData\\Local\\Vivaldi\\User Data");
         return true;
     }
     else
@@ -289,7 +294,8 @@ BOOL IsBlacklistedPath(LPCWSTR FilePath)
         WFilePath.rfind(FirefoxPath.c_str(), 0) == 0 ||
         WFilePath.rfind(YandexPath.c_str(), 0) == 0 ||
         WFilePath.rfind(OperaPath.c_str(), 0) == 0 ||
-        WFilePath.rfind(WaterfoxPath.c_str(), 0) == 0)
+        WFilePath.rfind(WaterfoxPath.c_str(), 0) == 0 ||
+        WFilePath.rfind(VivaldiPath.c_str(), 0) == 0)
     {
         return true;
     }
