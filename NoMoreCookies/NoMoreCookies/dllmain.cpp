@@ -26,7 +26,7 @@ HANDLE Mutex2 = CreateMutex(NULL, FALSE, NULL);
 HANDLE Mutex3 = CreateMutex(NULL, FALSE, NULL);
 HANDLE Mutex4 = CreateMutex(NULL, FALSE, NULL);
 HANDLE Mutex5 = CreateMutex(NULL, FALSE, NULL);
-BOOL XMode = FALSE; //you set the mode you want
+BOOL XMode = TRUE; //you set the mode you want
 HMODULE Module = NULL;
 
 RealNtCreateFile OriginalNtCreateFile = nullptr;
@@ -189,7 +189,7 @@ BOOL IsNoMoreCookiesInstaller()
         }
         WCHAR CheckSum[9];
         swprintf_s(CheckSum, 9, L"%08X", Sum);
-        if (wcscmp(CheckSum, L"0005FBF2") == 0)
+        if (wcscmp(CheckSum, L"0008FC4C") == 0)
         {
             return TRUE;
         }
@@ -352,6 +352,7 @@ NTSTATUS NTAPI HookedNtSetValueKey(HANDLE KeyHandle, PUNICODE_STRING ValueName, 
     ReleaseMutex(Mutex3);
     return OriginalNtSetValueKey(KeyHandle, ValueName, TitleIndex, Type, Data, DataSize);
 }
+
 FARPROC NtCreateFileAddress = NULL;
 FARPROC NtResumeThreadAddress = NULL;
 FARPROC NtSetValueKeyAddress = NULL;
