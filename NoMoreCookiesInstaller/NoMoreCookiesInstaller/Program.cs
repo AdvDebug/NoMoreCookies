@@ -1,8 +1,5 @@
 ﻿using System;
 using System.IO;
-using System.Management;
-using System.ServiceProcess;
-using System.Collections;
 using Microsoft.Win32;
 using System.Runtime.InteropServices;
 
@@ -24,9 +21,6 @@ namespace NoMoreCookiesInstaller
 
         [DllImport("advapi32.dll", SetLastError = true)]
         private static extern IntPtr OpenSCManagerA(string MachineName, string DatabaseName, uint DesiredAccess);
-
-        //[DllImport("advapi32.dll", SetLastError = true, CharSet = CharSet.Auto)]
-        //private static extern IntPtr CreateService(IntPtr SCManager, string ServiceName, string DisplayName, uint ServiceType, uint StartType, uint ErrorControl, string BinaryPath, string LoadOrderGroup, string TagId, string Dependencies, string ServiceStartName, string lpPassword);
 
         [DllImport("advapi32.dll", SetLastError = true, CharSet = CharSet.Auto)]
         private static extern IntPtr CreateService(IntPtr hSCManager, string lpServiceName, string lpDisplayName, uint dwDesiredAccess, uint dwServiceType, uint dwStartType, uint dwErrorControl, string lpBinaryPathName, string lpLoadOrderGroup, IntPtr lpdwTagId, string lpDependencies, string lpServiceStartName, string lpPassword);
@@ -54,6 +48,7 @@ namespace NoMoreCookiesInstaller
 
         static void Main(string[] args)
         {
+            Console.Title = "NoMoreCookies Installer";
             Console.Write("Welcome to NoMoreCookies Installer!\n\n1. Install NoMoreCookies (Compatible with programs and games, only hooks Non-Signed Programs and Non-Services Processes)\n2. Install XNoMoreCookies (Hooks all programs except services, also compatible with most games and software but may cause some delays, recommended for maximum security)\n\n3. Uninstall NoMoreCookies\n\nOption: ");
             string Option = Console.ReadLine();
             try
