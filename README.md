@@ -2,7 +2,7 @@
 <p align="center">
 <a href="#"><img src="https://github.com/AdvDebug/NoMoreCookies/blob/main/NoMoreCookies.jpg?raw=true" height="150"></a>
 </p>
-Browser Protector against various stealers, written in C# & C/C++. (currently doesn't support systems with SecureBoot enabled)
+Browser Protector against various stealers, written in C# & C/C++.
 
 Works by hooking NtCreateFile and prevent accessing browser files, in addition to prevent it's unhooking. compatible with various games and software. (contributions are very welcomed)
 
