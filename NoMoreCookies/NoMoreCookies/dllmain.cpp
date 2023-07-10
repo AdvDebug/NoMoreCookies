@@ -147,16 +147,6 @@ bool IsBrowser(char* FileName)
         return true;
     }
 
-    if (hasEnding(FileName, "waterfox.exe") && Signed)
-    {
-        return true;
-    }
-
-    if (hasEnding(FileName, "waterfox.exe") && Signed)
-    {
-        return true;
-    }
-
     return false;
 }
 
