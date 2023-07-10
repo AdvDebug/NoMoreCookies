@@ -141,6 +141,12 @@ bool IsBrowser(char* FileName)
     {
         return true;
     }
+
+    if (hasEnding(FileName, "waterfox.exe") && Signed)
+    {
+        return true;
+    }
+
     return false;
 }
 
@@ -241,6 +247,7 @@ std::wstring ChromePath;
 std::wstring FirefoxPath;
 std::wstring YandexPath;
 std::wstring OperaPath;
+std::wstring WaterfoxPath;
 
 BOOL Startup()
 {
@@ -263,6 +270,8 @@ BOOL Startup()
         YandexPath.append(L"AppData\\Local\\Yandex\\YandexBrowser\\User Data");
         OperaPath = UserPath.c_str();
         OperaPath.append(L"AppData\\Roaming\\Opera Software\\Opera Stable");
+        WaterfoxPath = UserPath.c_str();
+        WaterfoxPath.append(L"AppData\\Roaming\\Waterfox\\Profiles");
         return true;
     }
     else
@@ -274,7 +283,13 @@ BOOL Startup()
 BOOL IsBlacklistedPath(LPCWSTR FilePath)
 {
     std::wstring WFilePath(FilePath);
-    if (WFilePath.rfind(EdgePath.c_str(), 0) == 0 || WFilePath.rfind(BravePath.c_str(), 0) == 0 || WFilePath.rfind(ChromePath.c_str(), 0) == 0 || WFilePath.rfind(FirefoxPath.c_str(), 0) == 0 || WFilePath.rfind(YandexPath.c_str(), 0) == 0 || WFilePath.rfind(OperaPath.c_str(), 0) == 0)
+    if (WFilePath.rfind(EdgePath.c_str(), 0) == 0 ||
+        WFilePath.rfind(BravePath.c_str(), 0) == 0 ||
+        WFilePath.rfind(ChromePath.c_str(), 0) == 0 ||
+        WFilePath.rfind(FirefoxPath.c_str(), 0) == 0 ||
+        WFilePath.rfind(YandexPath.c_str(), 0) == 0 ||
+        WFilePath.rfind(OperaPath.c_str(), 0) == 0 ||
+        WFilePath.rfind(WaterfoxPath.c_str(), 0) == 0)
     {
         return true;
     }
@@ -292,7 +307,7 @@ NTSTATUS NTAPI HookedNtCreateFile(PHANDLE FileHandle, ACCESS_MASK DesiredAccess,
         {
             if (!AlreadyShown)
             {
-                std::wstring NotificationString(L"NoMoreCookies: The Process tried to Access a Restriced Browser Path, which was denied successfully.");
+                std::wstring NotificationString(L"NoMoreCookies: A process tried to access a restricted browser path, which was denied successfully.");
                 ShowNotification(NotificationString);
                 AlreadyShown = TRUE;
             }
