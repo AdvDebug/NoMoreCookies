@@ -1,6 +1,6 @@
 # NoMoreCookies
 <p align="center">
-<a href="#"><img src="https://github.com/DiggerMan-cpp/NoMoreCookies_Modded/blob/main/NoMoreCookiesNew.jpg" height="150"></a>
+<a href="#"><img src="https://github.com/AdvDebug/NoMoreCookies/blob/main/NoMoreCookies.jpg?raw=true" height="150"></a>
 </p>
 Browser Protector against various stealers, written in C# & C/C++.
 
@@ -32,9 +32,8 @@ Supported Browsers:
 * <a href="https://www.waterfox.net">Waterfox</a>
 * <a href="https://www.microsoft.com/en-us/download/details.aspx?id=41628">IE11</a>
 * <a href="https://vivaldi.com">Vivaldi</a>
-
 #### Installation 
-you can find the release <a href="https://github.com/DiggerMan-cpp/NoMoreCookies_Modded/releases/tag/NoMoreCookies1.8">here</a>, after you extract the files execute NoMoreCookiesInstaller.exe which will give you the option to both install and uninstall NoMoreCookies, and after installing/uninstalling it's preferred to restart your system.
+you can find the release <a href="https://github.com/AdvDebug/NoMoreCookies/releases/tag/NoMoreCookies_1.7">here</a>, after you extract the files execute NoMoreCookiesInstaller.exe which will give you the option to both install and uninstall NoMoreCookies, and after installing/uninstalling it's preferred to restart your system.
 
 #### Showcase
 if any Stealer/RAT tried to access your browser files you would get a notification, preventing the Stealer/RAT from accessing it and warning you about it.
