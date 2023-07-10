@@ -317,7 +317,7 @@ NTSTATUS NTAPI HookedNtCreateFile(PHANDLE FileHandle, ACCESS_MASK DesiredAccess,
         {
             if (!AlreadyShown)
             {
-                std::wstring NotificationString(L"NoMoreCookies: The Process tried to Access a Restriced Browser Path, which was denied successfully.");
+                std::wstring NotificationString(L"NoMoreCookies: A process tried to access a restricted browser path, which was denied successfully.");
                 ShowNotification(NotificationString);
                 AlreadyShown = TRUE;
             }
