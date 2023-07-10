@@ -251,7 +251,6 @@ std::wstring FirefoxPath;
 std::wstring YandexPath;
 std::wstring OperaPath;
 std::wstring WaterfoxPath;
-std::wstring IE11Path;
 std::wstring VivaldiPath;
 BOOL Startup()
 {
