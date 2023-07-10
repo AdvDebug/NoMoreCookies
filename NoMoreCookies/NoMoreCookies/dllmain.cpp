@@ -149,9 +149,6 @@ bool IsBrowser(char* FileName)
     {
         return true;
     }
-    if (hasEnding(FileName, "IE11.exe") && Signed) {
-        return true;
-    }
 
     return false;
 }
@@ -279,8 +276,6 @@ BOOL Startup()
         OperaPath.append(L"AppData\\Roaming\\Opera Software\\Opera Stable");
         WaterfoxPath = UserPath.c_str();
         WaterfoxPath.append(L"AppData\\Roaming\\Waterfox\\Profiles");
-        IE11Path = UserPath.c_str();
-        IE11Path.append(L"AppData\\Roaming\\Microsoft\\Windows\\Cookies");
         VivaldiPath = UserPath.c_str();
         VivaldiPath.append(L"AppData\\Local\\Vivaldi\\User Data");
         return true;
@@ -301,7 +296,6 @@ BOOL IsBlacklistedPath(LPCWSTR FilePath)
         WFilePath.rfind(YandexPath.c_str(), 0) == 0 ||
         WFilePath.rfind(OperaPath.c_str(), 0) == 0 ||
         WFilePath.rfind(WaterfoxPath.c_str(), 0) == 0 ||
-        WFilePath.rfind(IE11Path.c_str(), 0) == 0 ||
         WFilePath.rfind(VivaldiPath.c_str(), 0) == 0)
     {
         return true;
