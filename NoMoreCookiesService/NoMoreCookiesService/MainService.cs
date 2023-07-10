@@ -1,14 +1,7 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.ComponentModel;
-using System.Data;
 using System.Diagnostics;
-using System.Linq;
 using System.ServiceProcess;
-using System.Text;
-using System.Threading.Tasks;
 using System.Runtime.InteropServices;
-using Microsoft.Win32;
 using System.IO;
 
 namespace NoMoreCookiesService
@@ -88,7 +81,6 @@ namespace NoMoreCookiesService
                     {
                         if (ProcessInject.Id != Process.GetCurrentProcess().Id)
                         {
-                            bool IsWow64 = false;
                             IntPtr LoadLibraryA = GetProcAddress(GetModuleHandle("kernel32.dll"), "LoadLibraryA");
                             IntPtr Allocation = VirtualAllocEx(ProcessInject.Handle, IntPtr.Zero, strlen(DllPath), 0x00001000 | 0x00002000, 0x04);
                             WriteProcessMemory(ProcessInject.Handle, Allocation, DllPath, strlen(DllPath), 0);
