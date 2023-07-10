@@ -28,6 +28,7 @@ Supported Browsers:
 * <a href="https://www.microsoft.com/en-us/edge">Microsoft Edge</a>
 * <a href="https://browser.yandex.com">Yandex</a>
 * <a href="https://www.opera.com">Opera</a>
+* <a href="https://www.waterfox.net">Waterfox</a>
 
 #### Installation 
 you can find the release <a href="https://github.com/AdvDebug/NoMoreCookies/releases/tag/NoMoreCookies_1.6">here</a>, after you extract the files execute NoMoreCookiesInstaller.exe which will give you the option to both install and uninstall NoMoreCookies, and after installing/uninstalling it's preferred to restart your system.
