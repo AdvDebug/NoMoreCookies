@@ -1,6 +1,6 @@
 # NoMoreCookies
 <p align="center">
-<a href="#"><img src="https://github.com/AdvDebug/NoMoreCookies/blob/main/NoMoreCookies.jpg?raw=true" height="150"></a>
+<a href="#"><img src="https://github.com/DiggerMan-cpp/NoMoreCookies_Modded/blob/main/NoMoreCookies.jpg" height="150"></a>
 </p>
 Browser Protector against various stealers, written in C# & C/C++.
 
