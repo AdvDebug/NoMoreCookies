@@ -14,7 +14,7 @@ Works by hooking NtCreateFile and prevent accessing browser files, in addition t
 * <a href="https://github.com/qwqdanchun/DcRat">DcRat</a>
 * <a href="https://github.com/Blank-c/Umbral-Stealer">Umbral Stealer</a>
 * <a href="https://github.com/Blank-c/Blank-Grabber">Blank Grabber</a>
-* <a href="https://github.com/Shinyenigma/XWorm-RAT">XWorm RAT</a>
+* XWorm RAT
 * Raccoon Stealer
 * EdgeGuard
 * Vidar
