@@ -2,6 +2,8 @@
 using System.IO;
 using Microsoft.Win32;
 using System.Runtime.InteropServices;
+using System.Data;
+using System.Security.Policy;
 
 namespace NoMoreCookiesInstaller
 {
@@ -48,7 +50,11 @@ namespace NoMoreCookiesInstaller
 
         static void Main(string[] args)
         {
+            string VERSION = "1.8";
             Console.Title = "NoMoreCookies Installer";
+            Console.WriteLine("Checking for updates");
+            VersionChecker versionChecker = new VersionChecker();
+            versionChecker.CheckVersion(VERSION);
             Console.Write("Welcome to NoMoreCookies Installer!\n\n1. Install NoMoreCookies (Compatible with programs and games, only hooks Non-Signed Programs and Non-Services Processes)\n2. Install XNoMoreCookies (Hooks all programs except services, also compatible with most games and software but may cause some delays, recommended for maximum security)\n\n3. Uninstall NoMoreCookies\n\nOption: ");
             string Option = Console.ReadLine();
             try
