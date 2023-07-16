@@ -1,38 +1,31 @@
 ﻿using System;
+using System.Net;
 using System.Net.Http;
+using System.Text;
+using System.Windows.Forms;
 
 public class VersionChecker
 {
-    private HttpClient client;
 
-    public VersionChecker()
-    {
-        client = new HttpClient();
-    }
-
-    public void CheckVersion(string currentVersion)
+    public static void CheckVersion(string currentVersion)
     {
         try
         {
-            HttpResponseMessage response = client.GetAsync("https://raw.githubusercontent.com/AdvDebug/NoMoreCookies/main/version").Result;
-            response.EnsureSuccessStatusCode();
-            string responseContent = response.Content.ReadAsStringAsync().Result;
-            string latestVersion = responseContent.Trim();
-
+            WebClient webClient = new WebClient();
+            byte[] Version = webClient.DownloadData("https://raw.githubusercontent.com/AdvDebug/NoMoreCookies/main/version");
+            string latestVersion = Encoding.UTF8.GetString(Version);
             if (latestVersion == currentVersion)
             {
-                Console.WriteLine("You are using the latest version.");
+                Console.Write("You are using the latest version.\n\n");
             }
             else
             {
-                Console.WriteLine($"Your version {currentVersion} is outdated. Please update to version {latestVersion} | https://github.com/AdvDebug/NoMoreCookies/releases");
-                Console.Read();
-                Environment.Exit(0);
+                Console.Write($"Your version {currentVersion} is outdated. update to the version {latestVersion} from NoMoreCookies Repo.\n\n");
             }
         }
-        catch (HttpRequestException e)
+        catch
         {
-            Console.WriteLine($"Error occurred while checking the version: {e.Message}");
+            Console.WriteLine($"Couldn't check for the latest version.\n\n");
         }
     }
 }

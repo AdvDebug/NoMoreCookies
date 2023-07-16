@@ -1,9 +1,8 @@
 ﻿using System;
 using System.IO;
+using System.Windows.Forms;
 using Microsoft.Win32;
 using System.Runtime.InteropServices;
-using System.Data;
-using System.Security.Policy;
 
 namespace NoMoreCookiesInstaller
 {
@@ -48,13 +47,18 @@ namespace NoMoreCookiesInstaller
             return false;
         }
 
+        static string Version = "1.9";
+
         static void Main(string[] args)
         {
-            string VERSION = "1.8";
+            Console.Write("Checking for updates... ");
+            VersionChecker.CheckVersion(Version);
+            bool SecureBoot = IsSecureBootEnabled();
+            if (!Environment.Is64BitOperatingSystem)
+                Console.Write("Please Notice that NoMoreCookies are not tested on x86 systems and may cause bugs.\n");
+            if (SecureBoot)
+                Console.Write("NoMoreCookies Noticed that you have SecureBoot Enabled, you can still install NoMoreCookies but bugs in the installer or the protection may occur as it doesn't fully Support SecureBoot yet.\n\n");
             Console.Title = "NoMoreCookies Installer";
-            Console.WriteLine("Checking for updates");
-            VersionChecker versionChecker = new VersionChecker();
-            versionChecker.CheckVersion(VERSION);
             Console.Write("Welcome to NoMoreCookies Installer!\n\n1. Install NoMoreCookies (Compatible with programs and games, only hooks Non-Signed Programs and Non-Services Processes)\n2. Install XNoMoreCookies (Hooks all programs except services, also compatible with most games and software but may cause some delays, recommended for maximum security)\n\n3. Uninstall NoMoreCookies\n\nOption: ");
             string Option = Console.ReadLine();
             try
@@ -65,7 +69,7 @@ namespace NoMoreCookiesInstaller
                 string XNoMoreCookiesx86 = Environment.CurrentDirectory + "\\Components\\XNoMoreCookies.dll";
                 if (File.Exists(Environment.CurrentDirectory + "\\Components\\NoMoreCookies_x64.dll") && File.Exists(Environment.CurrentDirectory + "\\Components\\NoMoreCookies.dll") && File.Exists(Environment.CurrentDirectory + "\\Components\\XNoMoreCookies_x64.dll") && File.Exists(Environment.CurrentDirectory + "\\Components\\XNoMoreCookies.dll") && File.Exists(Environment.CurrentDirectory + "\\Components\\NoMoreCookiesService.exe") && File.Exists(Environment.CurrentDirectory + "\\Components\\NoMoreCookiesService_x64.exe"))
                 {
-                    if (!IsSecureBootEnabled())
+                    if (!SecureBoot)
                     {
                         switch (Option)
                         {
@@ -77,6 +81,17 @@ namespace NoMoreCookiesInstaller
                                     {
                                         Local.SetValue("AppInit_DLLs", "C:\\NoMoreCookies.dll", RegistryValueKind.String);
                                         Local.SetValue("LoadAppInit_DLLs", 1, RegistryValueKind.DWord);
+                                        if (File.Exists(@"C:\NoMoreCookies.dll"))
+                                        {
+                                            try
+                                            {
+                                                File.Delete(@"C:\NoMoreCookies.dll");
+                                            }
+                                            catch
+                                            {
+                                                Console.Write("Couldn't delete the existing NoMoreCookies.dll in the File Path: C:\\NoMoreCookies.dll, this maybe because NoMoreCookies.dll are already running in another process.");
+                                            }
+                                        }
                                         File.Copy(NoMoreCookiesx86, "C:\\NoMoreCookies.dll");
                                     }
                                     else
@@ -92,6 +107,17 @@ namespace NoMoreCookiesInstaller
                                     {
                                         Local.SetValue("AppInit_DLLs", "C:\\NoMoreCookies_x64.dll", RegistryValueKind.String);
                                         Local.SetValue("LoadAppInit_DLLs", 1, RegistryValueKind.DWord);
+                                        if (File.Exists(@"C:\NoMoreCookies_x64.dll"))
+                                        {
+                                            try
+                                            {
+                                                File.Delete(@"C:\NoMoreCookies_x64.dll");
+                                            }
+                                            catch (Exception ex)
+                                            {
+                                                Console.Write("Couldn't delete the existing NoMoreCookies_x64.dll in the File Path: C:\\NoMoreCookies_x64.dll, this maybe because NoMoreCookies.dll are already running in another process.");
+                                            }
+                                        }
                                         File.Copy(NoMoreCookiesx64, "C:\\NoMoreCookies_x64.dll");
                                     }
                                     else
@@ -102,6 +128,17 @@ namespace NoMoreCookiesInstaller
                                     {
                                         Local3.SetValue("AppInit_DLLs", "C:\\NoMoreCookies.dll", RegistryValueKind.String);
                                         Local3.SetValue("LoadAppInit_DLLs", 1, RegistryValueKind.DWord);
+                                        if (File.Exists(@"C:\NoMoreCookies.dll"))
+                                        {
+                                            try
+                                            {
+                                                File.Delete(@"C:\NoMoreCookies.dll");
+                                            }
+                                            catch
+                                            {
+                                                Console.Write("Couldn't delete the existing NoMoreCookies.dll in the File Path: C:\\NoMoreCookies.dll, this maybe because NoMoreCookies.dll are already running in another process.");
+                                            }
+                                        }
                                         File.Copy(NoMoreCookiesx86, "C:\\NoMoreCookies.dll");
                                     }
                                     else
@@ -119,6 +156,17 @@ namespace NoMoreCookiesInstaller
                                     {
                                         Local.SetValue("AppInit_DLLs", "C:\\XNoMoreCookies.dll", RegistryValueKind.String);
                                         Local.SetValue("LoadAppInit_DLLs", 1, RegistryValueKind.DWord);
+                                        if (File.Exists(@"C:\XNoMoreCookies.dll"))
+                                        {
+                                            try
+                                            {
+                                                File.Delete(@"C:\XNoMoreCookies.dll");
+                                            }
+                                            catch
+                                            {
+                                                Console.Write("Couldn't delete the existing XNoMoreCookies.dll in the File Path: C:\\NoMoreCookies.dll, this maybe because NoMoreCookies.dll are already running in another process.");
+                                            }
+                                        }
                                         File.Copy(XNoMoreCookiesx86, "C:\\XNoMoreCookies.dll");
                                     }
                                     else
