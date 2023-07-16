@@ -159,7 +159,8 @@ bool IsBrowser(char* FileName)
 BOOL IsBlacklistedApp(char* FileName, BOOL Signed)
 {
     if (hasEnding(FileName, "javaw.exe") && Signed || hasEnding(FileName, "py.exe") && Signed || hasEnding(FileName, "python.exe") && Signed || hasEnding(FileName, "pythonw.exe") && Signed || hasEnding(FileName, "explorer.exe") && Signed || std::string(FileName).find("C:\\Windows\\Microsoft.NET\\Framework") == 0)
-        return false;
+        return true;
+    return false;
 }
 
 BOOL IsProcessAllowed()
