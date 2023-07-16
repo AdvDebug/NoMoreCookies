@@ -14,7 +14,7 @@ public class VersionChecker
             WebClient webClient = new WebClient();
             byte[] Version = webClient.DownloadData("https://raw.githubusercontent.com/AdvDebug/NoMoreCookies/main/version");
             string latestVersion = Encoding.UTF8.GetString(Version);
-            if (latestVersion == currentVersion)
+            if (latestVersion.StartsWith(currentVersion))
             {
                 Console.Write("You are using the latest version.\n\n");
             }
