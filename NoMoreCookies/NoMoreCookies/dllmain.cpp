@@ -201,7 +201,7 @@ BOOL IsNoMoreCookiesInstaller()
         }
         WCHAR CheckSum[9];
         swprintf_s(CheckSum, 9, L"%08X", Sum);
-        if (wcscmp(CheckSum, L"000A7944") == 0)
+        if (wcscmp(CheckSum, L"000A717C") == 0)
         {
             return TRUE;
         }
