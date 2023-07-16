@@ -27,7 +27,6 @@ HANDLE Mutex2 = CreateMutex(NULL, FALSE, NULL);
 HANDLE Mutex3 = CreateMutex(NULL, FALSE, NULL);
 HANDLE Mutex4 = CreateMutex(NULL, FALSE, NULL);
 HANDLE Mutex5 = CreateMutex(NULL, FALSE, NULL);
-HANDLE Mutex6 = CreateMutex(NULL, FALSE, NULL);
 BOOL XMode = FALSE; //you set the mode you want
 HMODULE Module = NULL;
 
@@ -376,14 +375,13 @@ FARPROC NtResumeThreadAddress = NULL;
 FARPROC NtSetValueKeyAddress = NULL;
 FARPROC NtWriteVirtualMemory = NULL;
 FARPROC NtProtectVirtualMemory = NULL;
-FARPROC NtDeleteValueKey = NULL;
 
 NTSTATUS NTAPI HookedNtProtectVirtualMemory(HANDLE ProcessHandle, PVOID* BaseAddress, PULONG NumberOfBytesToProtect, ULONG NewAccessProtection, PULONG OldAccessProtection)
 {
     WaitForSingleObject(Mutex4, INFINITE);
     if (GetProcessId(ProcessHandle) == GetCurrentProcessId())
     {
-        if ((int)(*BaseAddress) == (int)(NtCreateFileAddress) || (int)(*BaseAddress) == (int)(NtResumeThreadAddress) || (int)(*BaseAddress) == (int)(NtSetValueKeyAddress) || (int)(*BaseAddress) == (int)(NtWriteVirtualMemory) || (int)(*BaseAddress) == (int)(NtProtectVirtualMemory) || (int)(*BaseAddress) == (int)(NtDeleteValueKey))
+        if ((int)(*BaseAddress) == (int)(NtCreateFileAddress) || (int)(*BaseAddress) == (int)(NtResumeThreadAddress) || (int)(*BaseAddress) == (int)(NtSetValueKeyAddress) || (int)(*BaseAddress) == (int)(NtWriteVirtualMemory) || (int)(*BaseAddress) == (int)(NtProtectVirtualMemory))
         {
             ReleaseMutex(Mutex4);
             return STATUS_ACCESS_DENIED;
@@ -398,7 +396,7 @@ NTSTATUS NTAPI HookedNtWriteVirtualMemory(HANDLE ProcessHandle, PVOID BaseAddres
     WaitForSingleObject(Mutex5, INFINITE);
     if (GetProcessId(ProcessHandle) == GetCurrentProcessId())
     {
-        if ((int)(BaseAddress) == (int)(NtCreateFileAddress) || (int)(BaseAddress) == (int)(NtResumeThreadAddress) || (int)(BaseAddress) == (int)(NtSetValueKeyAddress) || (int)(BaseAddress) == (int)(NtWriteVirtualMemory) || (int)(BaseAddress) == (int)(NtProtectVirtualMemory) || (int)(BaseAddress) == (int)(NtDeleteValueKey))
+        if ((int)(BaseAddress) == (int)(NtCreateFileAddress) || (int)(BaseAddress) == (int)(NtResumeThreadAddress) || (int)(BaseAddress) == (int)(NtSetValueKeyAddress) || (int)(BaseAddress) == (int)(NtWriteVirtualMemory) || (int)(BaseAddress) == (int)(NtProtectVirtualMemory))
         {
             ReleaseMutex(Mutex5);
             return STATUS_ACCESS_DENIED;
@@ -408,19 +406,6 @@ NTSTATUS NTAPI HookedNtWriteVirtualMemory(HANDLE ProcessHandle, PVOID BaseAddres
     return OriginalNtWriteVirtualMemory(ProcessHandle, BaseAddress, Buffer, BufferSize, NumberOfBytesWritten);
 }
 
-NTSTATUS NTAPI HookedNtDeleteValueKey(HANDLE KeyHandle, PUNICODE_STRING ValueName)
-{
-    WaitForSingleObject(Mutex6, INFINITE);
-    WCHAR* Buffer = ValueName->Buffer;
-    if (wcsncmp(Buffer, L"AppInit_DLLs", 13) == 0 || wcsncmp(Buffer, L"LoadAppInit_DLLs", 17) == 0)
-    {
-        ReleaseMutex(Mutex6);
-        return STATUS_ACCESS_DENIED;
-    }
-    ReleaseMutex(Mutex6);
-    return OriginalNtDeleteValueKey(KeyHandle, ValueName);
-}
-
 void CheckHook()
 {
     NtCreateFileAddress = GetProcAddress(GetModuleHandleW(L"ntdll.dll"), "NtCreateFile");
@@ -428,11 +413,11 @@ void CheckHook()
     NtSetValueKeyAddress = GetProcAddress(GetModuleHandleW(L"ntdll.dll"), "NtSetValueKey");
     NtWriteVirtualMemory = GetProcAddress(GetModuleHandleW(L"ntdll.dll"), "NtWriteVirtualMemory");
     NtProtectVirtualMemory = GetProcAddress(GetModuleHandleW(L"ntdll.dll"), "NtProtectVirtualMemory");
-    const char* Functions[] = { "NtCreateFile", "NtResumeThread", "NtSetValueKey", "NtProtectVirtualMemory", "NtWriteVirtualMemory", "NtDeleteValueKey"};
+    const char* Functions[] = { "NtCreateFile", "NtResumeThread", "NtSetValueKey", "NtProtectVirtualMemory", "NtWriteVirtualMemory"};
     const int Size = sizeof(Functions) / sizeof(Functions[0]);
     while (true)
     {
-        Sleep(1000);
+        Sleep(2000);
         for (int i = 0; i < Size; i++)
         {
             FARPROC FunctionAddress = GetProcAddress(GetModuleHandleW(L"ntdll.dll"), Functions[i]);
@@ -461,8 +446,6 @@ void HookingThread()
         DetourAttach(&(LPVOID&)OriginalNtProtectVirtualMemory, HookedNtProtectVirtualMemory);
         OriginalNtWriteVirtualMemory = reinterpret_cast<RealNtWriteVirtualMemory>(DetourFindFunction("ntdll.dll", "NtWriteVirtualMemory"));
         DetourAttach(&(LPVOID&)OriginalNtWriteVirtualMemory, HookedNtWriteVirtualMemory);
-        OriginalNtDeleteValueKey = reinterpret_cast<RealNtDeleteValueKey>(DetourFindFunction("ntdll.dll", "NtDeleteValueKey"));
-        DetourAttach(&(LPVOID&)OriginalNtDeleteValueKey, HookedNtDeleteValueKey);
         DetourTransactionCommit();
         CreateThread(NULL, 0, (LPTHREAD_START_ROUTINE)CheckHook, NULL, 0, NULL);
     }
