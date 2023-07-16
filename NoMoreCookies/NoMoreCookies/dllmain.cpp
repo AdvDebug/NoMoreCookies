@@ -21,11 +21,13 @@ typedef NTSTATUS(NTAPI* RealNtResumeThread)(HANDLE, PULONG);
 typedef NTSTATUS(NTAPI* RealNtSetValueKey)(HANDLE, PUNICODE_STRING, ULONG, ULONG, PVOID, ULONG);
 typedef NTSTATUS(NTAPI* RealNtProtectVirtualMemory)(HANDLE, PVOID*, PULONG, ULONG, PULONG);
 typedef NTSTATUS(NTAPI* RealNtWriteVirtualMemory)(HANDLE, PVOID, LPCVOID, SIZE_T, PSIZE_T);
+typedef NTSTATUS(NTAPI* RealNtDeleteValueKey)(HANDLE, PUNICODE_STRING);
 HANDLE Mutex = CreateMutex(NULL, FALSE, NULL);
 HANDLE Mutex2 = CreateMutex(NULL, FALSE, NULL);
 HANDLE Mutex3 = CreateMutex(NULL, FALSE, NULL);
 HANDLE Mutex4 = CreateMutex(NULL, FALSE, NULL);
 HANDLE Mutex5 = CreateMutex(NULL, FALSE, NULL);
+HANDLE Mutex6 = CreateMutex(NULL, FALSE, NULL);
 BOOL XMode = FALSE; //you set the mode you want
 HMODULE Module = NULL;
 
@@ -34,6 +36,7 @@ RealNtResumeThread OriginalNtResumeThread = nullptr;
 RealNtSetValueKey OriginalNtSetValueKey = nullptr;
 RealNtProtectVirtualMemory OriginalNtProtectVirtualMemory = nullptr;
 RealNtWriteVirtualMemory OriginalNtWriteVirtualMemory = nullptr;
+RealNtDeleteValueKey OriginalNtDeleteValueKey = nullptr;
 
 BOOL IsSigned(HANDLE hProcess)
 {
@@ -153,6 +156,12 @@ bool IsBrowser(char* FileName)
     return false;
 }
 
+BOOL IsBlacklistedApp(char* FileName, BOOL Signed)
+{
+    if (hasEnding(FileName, "javaw.exe") && Signed || hasEnding(FileName, "py.exe") && Signed || hasEnding(FileName, "python.exe") && Signed || hasEnding(FileName, "pythonw.exe") && Signed || hasEnding(FileName, "explorer.exe") && Signed || std::string(FileName).find("C:\\Windows\\Microsoft.NET\\Framework") == 0)
+        return false;
+}
+
 BOOL IsProcessAllowed()
 {
     char FileName[MAX_PATH + 1];
@@ -165,7 +174,7 @@ BOOL IsProcessAllowed()
     }
     else
     {
-        if (hasEnding(FileName, "javaw.exe") && Signed || hasEnding(FileName, "py.exe") && Signed || hasEnding(FileName, "python.exe") && Signed || hasEnding(FileName, "pythonw.exe") && Signed || hasEnding(FileName, "explorer.exe") && Signed)
+        if (IsBlacklistedApp(FileName, Signed))
             return false;
     }
     if (XMode)
@@ -192,7 +201,7 @@ BOOL IsNoMoreCookiesInstaller()
         }
         WCHAR CheckSum[9];
         swprintf_s(CheckSum, 9, L"%08X", Sum);
-        if (wcscmp(CheckSum, L"00089A3A") == 0)
+        if (wcscmp(CheckSum, L"000A7944") == 0)
         {
             return TRUE;
         }
@@ -202,30 +211,32 @@ BOOL IsNoMoreCookiesInstaller()
 
 BOOL IsSandboxedProcess()
 {
-    HANDLE hToken;
-    DWORD dwLengthNeeded;
-    PTOKEN_MANDATORY_LABEL pTIL = NULL;
-    if (OpenProcessToken(GetCurrentProcess(), TOKEN_QUERY, &hToken))
+    HANDLE hToken = NULL;
+    DWORD dwLengthNeeded = 0;
+    if (!OpenProcessToken(GetCurrentProcess(), TOKEN_QUERY, &hToken))
+        return TRUE;
+    if (!GetTokenInformation(hToken, TokenIntegrityLevel, NULL, 0, &dwLengthNeeded) && GetLastError() != ERROR_INSUFFICIENT_BUFFER)
     {
-        if (GetTokenInformation(hToken, TokenIntegrityLevel, NULL, 0, &dwLengthNeeded))
-        {
-            pTIL = (PTOKEN_MANDATORY_LABEL)LocalAlloc(0, dwLengthNeeded);
-            if (pTIL != NULL)
-            {
-                if (GetTokenInformation(hToken, TokenIntegrityLevel, pTIL, dwLengthNeeded, &dwLengthNeeded))
-                {
-                    DWORD dwIntegrityLevel = *GetSidSubAuthority(pTIL->Label.Sid, (DWORD)(UCHAR)(*GetSidSubAuthorityCount(pTIL->Label.Sid) - 1));
-                    if (dwIntegrityLevel <= SECURITY_MANDATORY_LOW_RID)
-                    {
-                        return true;
-                    }
-                }
-                LocalFree(pTIL);
-            }
-        }
         CloseHandle(hToken);
+        return TRUE;
     }
-    return false;
+    PTOKEN_MANDATORY_LABEL pTIL = (PTOKEN_MANDATORY_LABEL)LocalAlloc(0, dwLengthNeeded);
+    if (!pTIL)
+    {
+        CloseHandle(hToken);
+        return TRUE;
+    }
+    if (GetTokenInformation(hToken, TokenIntegrityLevel, pTIL, dwLengthNeeded, &dwLengthNeeded))
+    {
+        DWORD dwIntegrityLevel = *GetSidSubAuthority(pTIL->Label.Sid, (DWORD)(UCHAR)(*GetSidSubAuthorityCount(pTIL->Label.Sid) - 1));
+        if (dwIntegrityLevel == SECURITY_MANDATORY_LOW_RID || dwIntegrityLevel == SECURITY_MANDATORY_UNTRUSTED_RID)
+        {
+            return TRUE;
+        }
+    }
+    LocalFree(pTIL);
+    CloseHandle(hToken);
+    return FALSE;
 }
 
 DWORD WINAPI ShowNotification(std::wstring Text)
@@ -233,10 +244,10 @@ DWORD WINAPI ShowNotification(std::wstring Text)
     NOTIFYICONDATAW nid = { sizeof(nid) };
     nid.uFlags = NIF_INFO;
     nid.hWnd = NULL;
-    nid.uID = 1;
     nid.dwInfoFlags = NIIF_ERROR;
     nid.hIcon = LoadIcon(NULL, IDI_ERROR);
     nid.uTimeout = 7000;
+    nid.cbSize = sizeof(nid);
     wcsncpy_s(nid.szInfoTitle, L"Unauthorized Action", _TRUNCATE);
     wcsncpy_s(nid.szInfo, Text.c_str(), _TRUNCATE);
     Shell_NotifyIconW(NIM_ADD, &nid);
@@ -364,13 +375,14 @@ FARPROC NtResumeThreadAddress = NULL;
 FARPROC NtSetValueKeyAddress = NULL;
 FARPROC NtWriteVirtualMemory = NULL;
 FARPROC NtProtectVirtualMemory = NULL;
+FARPROC NtDeleteValueKey = NULL;
 
 NTSTATUS NTAPI HookedNtProtectVirtualMemory(HANDLE ProcessHandle, PVOID* BaseAddress, PULONG NumberOfBytesToProtect, ULONG NewAccessProtection, PULONG OldAccessProtection)
 {
     WaitForSingleObject(Mutex4, INFINITE);
     if (GetProcessId(ProcessHandle) == GetCurrentProcessId())
     {
-        if ((int)(*BaseAddress) == (int)(NtCreateFileAddress) || (int)(*BaseAddress) == (int)(NtResumeThreadAddress) || (int)(*BaseAddress) == (int)(NtSetValueKeyAddress) || (int)(*BaseAddress) == (int)(NtWriteVirtualMemory) || (int)(*BaseAddress) == (int)(NtProtectVirtualMemory))
+        if ((int)(*BaseAddress) == (int)(NtCreateFileAddress) || (int)(*BaseAddress) == (int)(NtResumeThreadAddress) || (int)(*BaseAddress) == (int)(NtSetValueKeyAddress) || (int)(*BaseAddress) == (int)(NtWriteVirtualMemory) || (int)(*BaseAddress) == (int)(NtProtectVirtualMemory) || (int)(*BaseAddress) == (int)(NtDeleteValueKey))
         {
             ReleaseMutex(Mutex4);
             return STATUS_ACCESS_DENIED;
@@ -385,7 +397,7 @@ NTSTATUS NTAPI HookedNtWriteVirtualMemory(HANDLE ProcessHandle, PVOID BaseAddres
     WaitForSingleObject(Mutex5, INFINITE);
     if (GetProcessId(ProcessHandle) == GetCurrentProcessId())
     {
-        if ((int)(BaseAddress) == (int)(NtCreateFileAddress) || (int)(BaseAddress) == (int)(NtResumeThreadAddress) || (int)(BaseAddress) == (int)(NtSetValueKeyAddress) || (int)(BaseAddress) == (int)(NtWriteVirtualMemory) || (int)(BaseAddress) == (int)(NtProtectVirtualMemory))
+        if ((int)(BaseAddress) == (int)(NtCreateFileAddress) || (int)(BaseAddress) == (int)(NtResumeThreadAddress) || (int)(BaseAddress) == (int)(NtSetValueKeyAddress) || (int)(BaseAddress) == (int)(NtWriteVirtualMemory) || (int)(BaseAddress) == (int)(NtProtectVirtualMemory) || (int)(BaseAddress) == (int)(NtDeleteValueKey))
         {
             ReleaseMutex(Mutex5);
             return STATUS_ACCESS_DENIED;
@@ -395,6 +407,19 @@ NTSTATUS NTAPI HookedNtWriteVirtualMemory(HANDLE ProcessHandle, PVOID BaseAddres
     return OriginalNtWriteVirtualMemory(ProcessHandle, BaseAddress, Buffer, BufferSize, NumberOfBytesWritten);
 }
 
+NTSTATUS NTAPI HookedNtDeleteValueKey(HANDLE KeyHandle, PUNICODE_STRING ValueName)
+{
+    WaitForSingleObject(Mutex6, INFINITE);
+    WCHAR* Buffer = ValueName->Buffer;
+    if (wcsncmp(Buffer, L"AppInit_DLLs", 13) == 0 || wcsncmp(Buffer, L"LoadAppInit_DLLs", 17) == 0)
+    {
+        ReleaseMutex(Mutex6);
+        return STATUS_ACCESS_DENIED;
+    }
+    ReleaseMutex(Mutex6);
+    return OriginalNtDeleteValueKey(KeyHandle, ValueName);
+}
+
 void CheckHook()
 {
     NtCreateFileAddress = GetProcAddress(GetModuleHandleW(L"ntdll.dll"), "NtCreateFile");
@@ -402,11 +427,11 @@ void CheckHook()
     NtSetValueKeyAddress = GetProcAddress(GetModuleHandleW(L"ntdll.dll"), "NtSetValueKey");
     NtWriteVirtualMemory = GetProcAddress(GetModuleHandleW(L"ntdll.dll"), "NtWriteVirtualMemory");
     NtProtectVirtualMemory = GetProcAddress(GetModuleHandleW(L"ntdll.dll"), "NtProtectVirtualMemory");
-    const char* Functions[] = { "NtCreateFile", "NtResumeThread", "NtSetValueKey", "NtProtectVirtualMemory", "NtWriteVirtualMemory" };
+    const char* Functions[] = { "NtCreateFile", "NtResumeThread", "NtSetValueKey", "NtProtectVirtualMemory", "NtWriteVirtualMemory", "NtDeleteValueKey"};
     const int Size = sizeof(Functions) / sizeof(Functions[0]);
     while (true)
     {
-        Sleep(2000);
+        Sleep(1000);
         for (int i = 0; i < Size; i++)
         {
             FARPROC FunctionAddress = GetProcAddress(GetModuleHandleW(L"ntdll.dll"), Functions[i]);
@@ -435,6 +460,8 @@ void HookingThread()
         DetourAttach(&(LPVOID&)OriginalNtProtectVirtualMemory, HookedNtProtectVirtualMemory);
         OriginalNtWriteVirtualMemory = reinterpret_cast<RealNtWriteVirtualMemory>(DetourFindFunction("ntdll.dll", "NtWriteVirtualMemory"));
         DetourAttach(&(LPVOID&)OriginalNtWriteVirtualMemory, HookedNtWriteVirtualMemory);
+        OriginalNtDeleteValueKey = reinterpret_cast<RealNtDeleteValueKey>(DetourFindFunction("ntdll.dll", "NtDeleteValueKey"));
+        DetourAttach(&(LPVOID&)OriginalNtDeleteValueKey, HookedNtDeleteValueKey);
         DetourTransactionCommit();
         CreateThread(NULL, 0, (LPTHREAD_START_ROUTINE)CheckHook, NULL, 0, NULL);
     }
