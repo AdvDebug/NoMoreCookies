@@ -37,35 +37,42 @@ RealNtProtectVirtualMemory OriginalNtProtectVirtualMemory = nullptr;
 RealNtWriteVirtualMemory OriginalNtWriteVirtualMemory = nullptr;
 RealNtDeleteValueKey OriginalNtDeleteValueKey = nullptr;
 
-BOOL IsSigned(HANDLE hProcess)
+
+const std::unordered_set<std::string> browsers {
+    "msedge.exe",
+    "firefox.exe",
+    "vivaldi.exe",
+    "chrome.exe",
+    "brave.exe",
+    "browser.exe",
+    "opera.exe",
+    "waterfox.exe"
+};
+
+bool IsSigned( HANDLE hProcess )
 {
-    bool isSigned = false;
-    TCHAR szFileName[MAX_PATH];
-    if (GetModuleFileNameEx(hProcess, NULL, szFileName, MAX_PATH) > 0)
-    {
-        WINTRUST_FILE_INFO FileData = { 0 };
-        WINTRUST_DATA TrustData = { 0 };
-        FileData.cbStruct = sizeof(FileData);
-        FileData.pcwszFilePath = szFileName;
-        FileData.hFile = NULL;
-        FileData.pgKnownSubject = NULL;
-        TrustData.cbStruct = sizeof(TrustData);
-        TrustData.dwUIChoice = WTD_UI_NONE;
-        TrustData.fdwRevocationChecks = WTD_REVOKE_NONE;
-        TrustData.dwUnionChoice = WTD_CHOICE_FILE;
-        TrustData.pFile = &FileData;
-        TrustData.dwStateAction = WTD_STATEACTION_VERIFY;
-        TrustData.hWVTStateData = NULL;
-        TrustData.pwszURLReference = NULL;
-        TrustData.dwProvFlags = WTD_CACHE_ONLY_URL_RETRIEVAL;
-        GUID Guid = WINTRUST_ACTION_GENERIC_VERIFY_V2;
-        LONG IsSigned = WinVerifyTrust(NULL, &Guid, &TrustData);
-        if (IsSigned == ERROR_SUCCESS)
-        {
-            return TRUE;
-        }
-    }
-    return FALSE;
+    TCHAR szFileName[ MAX_PATH ];
+    if ( !K32GetModuleFileNameExW( hProcess, NULL, szFileName, MAX_PATH ) )
+        return false;
+
+    WINTRUST_FILE_INFO FileData = { 0 };
+    WINTRUST_DATA TrustData = { 0 };
+    FileData.cbStruct = sizeof( FileData );
+    FileData.pcwszFilePath = szFileName;
+    FileData.hFile = NULL;
+    FileData.pgKnownSubject = NULL;
+    TrustData.cbStruct = sizeof( TrustData );
+    TrustData.dwUIChoice = WTD_UI_NONE;
+    TrustData.fdwRevocationChecks = WTD_REVOKE_NONE;
+    TrustData.dwUnionChoice = WTD_CHOICE_FILE;
+    TrustData.pFile = &FileData;
+    TrustData.dwStateAction = WTD_STATEACTION_VERIFY;
+    TrustData.hWVTStateData = NULL;
+    TrustData.pwszURLReference = NULL;
+    TrustData.dwProvFlags = WTD_CACHE_ONLY_URL_RETRIEVAL;
+    GUID Guid = WINTRUST_ACTION_GENERIC_VERIFY_V2;
+
+    return WinVerifyTrust( NULL, &Guid, &TrustData ) == ERROR_SUCCESS;
 }
 
 BOOL IsRunningAsService()
@@ -111,45 +118,15 @@ bool hasEnding(std::string const& fullString, std::string const& ending)
     return false;
 }
 
-bool IsBrowser(char* FileName)
+bool IsBrowser( const std::string_view& FileName )
 {
-    BOOL Signed = IsSigned(GetCurrentProcess());
-    if (hasEnding(FileName, "msedge.exe") && Signed)
-    {
-        return true;
-    }
+    if ( !IsSigned( GetCurrentProcess( ) ) )
+        return false;
 
-    if (hasEnding(FileName, "firefox.exe") && Signed)
-    {
-        return true;
-    }
-    if (hasEnding(FileName, "vivaldi.exe") && Signed)
-    {
-        return true;
-    }
-    if (hasEnding(FileName, "chrome.exe") && Signed)
-    {
-        return true;
-    }
+    for ( auto& browser_name : browsers ) {
 
-    if (hasEnding(FileName, "brave.exe") && Signed)
-    {
-        return true;
-    }
-
-    if (hasEnding(FileName, "browser.exe") && Signed)
-    {
-        return true;
-    }
-
-    if (hasEnding(FileName, "opera.exe") && Signed)
-    {
-        return true;
-    }
-
-    if (hasEnding(FileName, "waterfox.exe") && Signed)
-    {
-        return true;
+        if ( FileName.ends_with( browser_name ) )
+            return true;
     }
 
     return false;
