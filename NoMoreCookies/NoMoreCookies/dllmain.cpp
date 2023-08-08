@@ -28,6 +28,7 @@ HANDLE Mutex3 = CreateMutex(NULL, FALSE, NULL);
 HANDLE Mutex4 = CreateMutex(NULL, FALSE, NULL);
 HANDLE Mutex5 = CreateMutex(NULL, FALSE, NULL);
 BOOL XMode = FALSE; //you set the mode you want
+BOOL Mini = TRUE; //Mini Mode FALSE/TRUE
 HMODULE Module = NULL;
 
 RealNtCreateFile OriginalNtCreateFile = nullptr;
@@ -37,42 +38,35 @@ RealNtProtectVirtualMemory OriginalNtProtectVirtualMemory = nullptr;
 RealNtWriteVirtualMemory OriginalNtWriteVirtualMemory = nullptr;
 RealNtDeleteValueKey OriginalNtDeleteValueKey = nullptr;
 
-
-const std::unordered_set<std::string> browsers {
-    "msedge.exe",
-    "firefox.exe",
-    "vivaldi.exe",
-    "chrome.exe",
-    "brave.exe",
-    "browser.exe",
-    "opera.exe",
-    "waterfox.exe"
-};
-
-bool IsSigned( HANDLE hProcess )
+BOOL IsSigned(HANDLE hProcess)
 {
-    TCHAR szFileName[ MAX_PATH ];
-    if ( !K32GetModuleFileNameExW( hProcess, NULL, szFileName, MAX_PATH ) )
-        return false;
-
-    WINTRUST_FILE_INFO FileData = { 0 };
-    WINTRUST_DATA TrustData = { 0 };
-    FileData.cbStruct = sizeof( FileData );
-    FileData.pcwszFilePath = szFileName;
-    FileData.hFile = NULL;
-    FileData.pgKnownSubject = NULL;
-    TrustData.cbStruct = sizeof( TrustData );
-    TrustData.dwUIChoice = WTD_UI_NONE;
-    TrustData.fdwRevocationChecks = WTD_REVOKE_NONE;
-    TrustData.dwUnionChoice = WTD_CHOICE_FILE;
-    TrustData.pFile = &FileData;
-    TrustData.dwStateAction = WTD_STATEACTION_VERIFY;
-    TrustData.hWVTStateData = NULL;
-    TrustData.pwszURLReference = NULL;
-    TrustData.dwProvFlags = WTD_CACHE_ONLY_URL_RETRIEVAL;
-    GUID Guid = WINTRUST_ACTION_GENERIC_VERIFY_V2;
-
-    return WinVerifyTrust( NULL, &Guid, &TrustData ) == ERROR_SUCCESS;
+    bool isSigned = false;
+    TCHAR szFileName[MAX_PATH];
+    if (GetModuleFileNameEx(hProcess, NULL, szFileName, MAX_PATH) > 0)
+    {
+        WINTRUST_FILE_INFO FileData = { 0 };
+        WINTRUST_DATA TrustData = { 0 };
+        FileData.cbStruct = sizeof(FileData);
+        FileData.pcwszFilePath = szFileName;
+        FileData.hFile = NULL;
+        FileData.pgKnownSubject = NULL;
+        TrustData.cbStruct = sizeof(TrustData);
+        TrustData.dwUIChoice = WTD_UI_NONE;
+        TrustData.fdwRevocationChecks = WTD_REVOKE_NONE;
+        TrustData.dwUnionChoice = WTD_CHOICE_FILE;
+        TrustData.pFile = &FileData;
+        TrustData.dwStateAction = WTD_STATEACTION_VERIFY;
+        TrustData.hWVTStateData = NULL;
+        TrustData.pwszURLReference = NULL;
+        TrustData.dwProvFlags = WTD_CACHE_ONLY_URL_RETRIEVAL;
+        GUID Guid = WINTRUST_ACTION_GENERIC_VERIFY_V2;
+        LONG IsSigned = WinVerifyTrust(NULL, &Guid, &TrustData);
+        if (IsSigned == ERROR_SUCCESS)
+        {
+            return TRUE;
+        }
+    }
+    return FALSE;
 }
 
 BOOL IsRunningAsService()
@@ -118,15 +112,45 @@ bool hasEnding(std::string const& fullString, std::string const& ending)
     return false;
 }
 
-bool IsBrowser( const std::string_view& FileName )
+bool IsBrowser(char* FileName)
 {
-    if ( !IsSigned( GetCurrentProcess( ) ) )
-        return false;
+    BOOL Signed = IsSigned(GetCurrentProcess());
+    if (hasEnding(FileName, "msedge.exe") && Signed)
+    {
+        return true;
+    }
 
-    for ( auto& browser_name : browsers ) {
+    if (hasEnding(FileName, "firefox.exe") && Signed)
+    {
+        return true;
+    }
+    if (hasEnding(FileName, "vivaldi.exe") && Signed)
+    {
+        return true;
+    }
+    if (hasEnding(FileName, "chrome.exe") && Signed)
+    {
+        return true;
+    }
 
-        if ( FileName.ends_with( browser_name ) )
-            return true;
+    if (hasEnding(FileName, "brave.exe") && Signed)
+    {
+        return true;
+    }
+
+    if (hasEnding(FileName, "browser.exe") && Signed)
+    {
+        return true;
+    }
+
+    if (hasEnding(FileName, "opera.exe") && Signed)
+    {
+        return true;
+    }
+
+    if (hasEnding(FileName, "waterfox.exe") && Signed)
+    {
+        return true;
     }
 
     return false;
@@ -165,7 +189,8 @@ BOOL IsNoMoreCookiesInstaller()
     char Buffer[1024];
     DWORD BytesRead;
     WCHAR FileName[MAX_PATH + 1];
-    GetModuleFileNameEx(GetCurrentProcess(), NULL, FileName, MAX_PATH);
+    if (!K32GetModuleFileNameExW(GetCurrentProcess(), NULL, FileName, MAX_PATH))
+        return false;
     HANDLE hFile = CreateFile(FileName, GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
     if (hFile != INVALID_HANDLE_VALUE)
     {
@@ -178,7 +203,8 @@ BOOL IsNoMoreCookiesInstaller()
         }
         WCHAR CheckSum[9];
         swprintf_s(CheckSum, 9, L"%08X", Sum);
-        if (wcscmp(CheckSum, L"000A717C") == 0)
+        MessageBox(NULL, CheckSum, L"Checksum", MB_OK);
+        if (wcscmp(CheckSum, L"000C66AD") == 0)
         {
             return TRUE;
         }
@@ -322,13 +348,13 @@ NTSTATUS NTAPI HookedNtResumeThread(HANDLE Thread, PULONG SuspendCount)
         HANDLE hProcess = OpenProcess(PROCESS_ALL_ACCESS, FALSE, PID);
         char DllPath[MAX_PATH];
         GetModuleFileNameA(Module, DllPath, MAX_PATH);
-        LPVOID LoadLibAddr = (LPVOID)GetProcAddress(GetModuleHandleA("kernel32.dll"), "LoadLibraryA");
-        LPVOID dereercomp = VirtualAllocEx(hProcess, NULL, strlen(DllPath), MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE);
-        WriteProcessMemory(hProcess, dereercomp, DllPath, strlen(DllPath), NULL);
-        HANDLE Injecting = CreateRemoteThread(hProcess, NULL, NULL, (LPTHREAD_START_ROUTINE)LoadLibAddr, dereercomp, 0, NULL);
-        WaitForSingleObject(Injecting, INFINITE);
-        VirtualFreeEx(hProcess, dereercomp, strlen(DllPath), MEM_RELEASE);
-        CloseHandle(Injecting);
+        LPVOID LoadLibraryAddress = (LPVOID)GetProcAddress(GetModuleHandleA("kernel32.dll"), "LoadLibraryA");
+        LPVOID Allocation = VirtualAllocEx(hProcess, NULL, strlen(DllPath), MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE);
+        WriteProcessMemory(hProcess, Allocation, DllPath, strlen(DllPath), NULL);
+        HANDLE InjectionThread = CreateRemoteThread(hProcess, NULL, NULL, (LPTHREAD_START_ROUTINE)LoadLibraryAddress, Allocation, 0, NULL);
+        WaitForSingleObject(InjectionThread, INFINITE);
+        VirtualFreeEx(hProcess, Allocation, strlen(DllPath), MEM_RELEASE);
+        CloseHandle(InjectionThread);
         CloseHandle(hProcess);
     }
     ReleaseMutex(Mutex2);
@@ -390,7 +416,7 @@ void CheckHook()
     NtSetValueKeyAddress = GetProcAddress(GetModuleHandleW(L"ntdll.dll"), "NtSetValueKey");
     NtWriteVirtualMemory = GetProcAddress(GetModuleHandleW(L"ntdll.dll"), "NtWriteVirtualMemory");
     NtProtectVirtualMemory = GetProcAddress(GetModuleHandleW(L"ntdll.dll"), "NtProtectVirtualMemory");
-    const char* Functions[] = { "NtCreateFile", "NtResumeThread", "NtSetValueKey", "NtProtectVirtualMemory", "NtWriteVirtualMemory"};
+    const char* Functions[] = { "NtCreateFile", "NtResumeThread", "NtSetValueKey", "NtProtectVirtualMemory", "NtWriteVirtualMemory" };
     const int Size = sizeof(Functions) / sizeof(Functions[0]);
     while (true)
     {
@@ -415,16 +441,22 @@ void HookingThread()
         DetourUpdateThread(GetCurrentThread());
         OriginalNtCreateFile = reinterpret_cast<RealNtCreateFile>(DetourFindFunction("ntdll.dll", "NtCreateFile"));
         DetourAttach(&(LPVOID&)OriginalNtCreateFile, HookedNtCreateFile);
-        OriginalNtResumeThread = reinterpret_cast<RealNtResumeThread>(DetourFindFunction("ntdll.dll", "NtResumeThread"));
-        DetourAttach(&(LPVOID&)OriginalNtResumeThread, HookedNtResumeThread);
-        OriginalNtSetValueKey = reinterpret_cast<RealNtSetValueKey>(DetourFindFunction("ntdll.dll", "NtSetValueKey"));
-        DetourAttach(&(LPVOID&)OriginalNtSetValueKey, HookedNtSetValueKey);
-        OriginalNtProtectVirtualMemory = reinterpret_cast<RealNtProtectVirtualMemory>(DetourFindFunction("ntdll.dll", "NtProtectVirtualMemory"));
-        DetourAttach(&(LPVOID&)OriginalNtProtectVirtualMemory, HookedNtProtectVirtualMemory);
-        OriginalNtWriteVirtualMemory = reinterpret_cast<RealNtWriteVirtualMemory>(DetourFindFunction("ntdll.dll", "NtWriteVirtualMemory"));
-        DetourAttach(&(LPVOID&)OriginalNtWriteVirtualMemory, HookedNtWriteVirtualMemory);
+        if (!Mini)
+        {
+            OriginalNtResumeThread = reinterpret_cast<RealNtResumeThread>(DetourFindFunction("ntdll.dll", "NtResumeThread"));
+            DetourAttach(&(LPVOID&)OriginalNtResumeThread, HookedNtResumeThread);
+            OriginalNtSetValueKey = reinterpret_cast<RealNtSetValueKey>(DetourFindFunction("ntdll.dll", "NtSetValueKey"));
+            DetourAttach(&(LPVOID&)OriginalNtSetValueKey, HookedNtSetValueKey);
+            OriginalNtProtectVirtualMemory = reinterpret_cast<RealNtProtectVirtualMemory>(DetourFindFunction("ntdll.dll", "NtProtectVirtualMemory"));
+            DetourAttach(&(LPVOID&)OriginalNtProtectVirtualMemory, HookedNtProtectVirtualMemory);
+            OriginalNtWriteVirtualMemory = reinterpret_cast<RealNtWriteVirtualMemory>(DetourFindFunction("ntdll.dll", "NtWriteVirtualMemory"));
+            DetourAttach(&(LPVOID&)OriginalNtWriteVirtualMemory, HookedNtWriteVirtualMemory);
+        }
         DetourTransactionCommit();
-        CreateThread(NULL, 0, (LPTHREAD_START_ROUTINE)CheckHook, NULL, 0, NULL);
+        if (!Mini)
+        {
+            CreateThread(NULL, 0, (LPTHREAD_START_ROUTINE)CheckHook, NULL, 0, NULL);
+        }
     }
     else
     {
