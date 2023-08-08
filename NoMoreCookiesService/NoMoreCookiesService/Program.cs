@@ -7,7 +7,6 @@ namespace NoMoreCookiesService
     {
         static void Main()
         {
-            Thread.Sleep(10000);
             ServiceBase[] ServicesToRun;
             ServicesToRun = new ServiceBase[]
             {
