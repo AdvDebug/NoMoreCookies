@@ -17,6 +17,7 @@
 #define STATUS_ACCESS_DENIED 0xC0000022
 
 typedef NTSTATUS(NTAPI* RealNtCreateFile)(PHANDLE, ACCESS_MASK, POBJECT_ATTRIBUTES, PIO_STATUS_BLOCK, PLARGE_INTEGER, ULONG, ULONG, ULONG, ULONG, PVOID, ULONG);
+typedef NTSTATUS(NTAPI *RealNtOpenFile)(PHANDLE, ACCESS_MASK, POBJECT_ATTRIBUTES, PIO_STATUS_BLOCK, ULONG, ULONG);
 typedef NTSTATUS(NTAPI* RealNtResumeThread)(HANDLE, PULONG);
 typedef NTSTATUS(NTAPI* RealNtSetValueKey)(HANDLE, PUNICODE_STRING, ULONG, ULONG, PVOID, ULONG);
 typedef NTSTATUS(NTAPI* RealNtProtectVirtualMemory)(HANDLE, PVOID*, PULONG, ULONG, PULONG);
@@ -27,11 +28,13 @@ HANDLE Mutex2 = CreateMutex(NULL, FALSE, NULL);
 HANDLE Mutex3 = CreateMutex(NULL, FALSE, NULL);
 HANDLE Mutex4 = CreateMutex(NULL, FALSE, NULL);
 HANDLE Mutex5 = CreateMutex(NULL, FALSE, NULL);
-BOOL XMode = FALSE; //you set the mode you want
-BOOL Mini = TRUE; //Mini Mode FALSE/TRUE
+HANDLE Mutex6 = CreateMutex(NULL, FALSE, NULL);
+BOOL XMode = TRUE; //you set the mode you want
+BOOL Mini = FALSE; //Mini Mode FALSE/TRUE
 HMODULE Module = NULL;
 
 RealNtCreateFile OriginalNtCreateFile = nullptr;
+RealNtOpenFile OriginalNtOpenFile = nullptr;
 RealNtResumeThread OriginalNtResumeThread = nullptr;
 RealNtSetValueKey OriginalNtSetValueKey = nullptr;
 RealNtProtectVirtualMemory OriginalNtProtectVirtualMemory = nullptr;
@@ -338,9 +341,32 @@ NTSTATUS NTAPI HookedNtCreateFile(PHANDLE FileHandle, ACCESS_MASK DesiredAccess,
     return OriginalNtCreateFile(FileHandle, DesiredAccess, ObjectAttributes, IoStatusBlock, AllocationSize, FileAttributes, ShareAccess, CreateDisposition, CreateOptions, EaBuffer, EaLength);
 }
 
-NTSTATUS NTAPI HookedNtResumeThread(HANDLE Thread, PULONG SuspendCount)
+BOOL AlreadyShown2 = FALSE;
+NTSTATUS NTAPI HookedNtOpenFile(PHANDLE FileHandle, ACCESS_MASK DesiredAccess, POBJECT_ATTRIBUTES ObjectAttributes, PIO_STATUS_BLOCK IoStatusBlock, ULONG ShareAccess, ULONG OpenOptions)
 {
     WaitForSingleObject(Mutex2, INFINITE);
+    if (ObjectAttributes != nullptr && ObjectAttributes->ObjectName != nullptr)
+    {
+        std::wstring fileName(ObjectAttributes->ObjectName->Buffer, ObjectAttributes->ObjectName->Length / sizeof(wchar_t));
+        if (IsBlacklistedPath(fileName.c_str()))
+        {
+            if (!AlreadyShown2)
+            {
+                std::wstring NotificationString(L"NoMoreCookies: A process tried to access a restricted browser path, which was denied successfully.");
+                ShowNotification(NotificationString);
+                AlreadyShown = TRUE;
+            }
+            ReleaseMutex(Mutex2);
+            return STATUS_ACCESS_DENIED;
+        }
+    }
+    ReleaseMutex(Mutex2);
+    return OriginalNtOpenFile(FileHandle, DesiredAccess, ObjectAttributes, IoStatusBlock, ShareAccess, OpenOptions);
+}
+
+NTSTATUS NTAPI HookedNtResumeThread(HANDLE Thread, PULONG SuspendCount)
+{
+    WaitForSingleObject(Mutex3, INFINITE);
     DWORD PID = GetProcessIdOfThread(Thread);
     if (PID != GetCurrentProcessId())
     {
@@ -356,23 +382,24 @@ NTSTATUS NTAPI HookedNtResumeThread(HANDLE Thread, PULONG SuspendCount)
         CloseHandle(InjectionThread);
         CloseHandle(hProcess);
     }
-    ReleaseMutex(Mutex2);
+    ReleaseMutex(Mutex3);
     return OriginalNtResumeThread(Thread, SuspendCount);
 }
 
 NTSTATUS NTAPI HookedNtSetValueKey(HANDLE KeyHandle, PUNICODE_STRING ValueName, ULONG TitleIndex, ULONG Type, PVOID Data, ULONG DataSize)
 {
-    WaitForSingleObject(Mutex3, INFINITE);
+    WaitForSingleObject(Mutex4, INFINITE);
     if (ValueName != NULL && ValueName->Buffer != NULL && Type == REG_SZ && wcsstr(ValueName->Buffer, L"AppInit_DLLs") || ValueName != NULL && ValueName->Buffer != NULL && Type == REG_DWORD && wcsstr(ValueName->Buffer, L"LoadAppInit_DLLs"))
     {
-        ReleaseMutex(Mutex3);
+        ReleaseMutex(Mutex4);
         return STATUS_ACCESS_DENIED;
     }
-    ReleaseMutex(Mutex3);
+    ReleaseMutex(Mutex4);
     return OriginalNtSetValueKey(KeyHandle, ValueName, TitleIndex, Type, Data, DataSize);
 }
 
 FARPROC NtCreateFileAddress = NULL;
+FARPROC NtOpenFileAddress = NULL;
 FARPROC NtResumeThreadAddress = NULL;
 FARPROC NtSetValueKeyAddress = NULL;
 FARPROC NtWriteVirtualMemory = NULL;
@@ -380,42 +407,43 @@ FARPROC NtProtectVirtualMemory = NULL;
 
 NTSTATUS NTAPI HookedNtProtectVirtualMemory(HANDLE ProcessHandle, PVOID* BaseAddress, PULONG NumberOfBytesToProtect, ULONG NewAccessProtection, PULONG OldAccessProtection)
 {
-    WaitForSingleObject(Mutex4, INFINITE);
-    if (GetProcessId(ProcessHandle) == GetCurrentProcessId())
-    {
-        if ((int)(*BaseAddress) == (int)(NtCreateFileAddress) || (int)(*BaseAddress) == (int)(NtResumeThreadAddress) || (int)(*BaseAddress) == (int)(NtSetValueKeyAddress) || (int)(*BaseAddress) == (int)(NtWriteVirtualMemory) || (int)(*BaseAddress) == (int)(NtProtectVirtualMemory))
-        {
-            ReleaseMutex(Mutex4);
-            return STATUS_ACCESS_DENIED;
-        }
-    }
-    ReleaseMutex(Mutex4);
-    return OriginalNtProtectVirtualMemory(ProcessHandle, BaseAddress, NumberOfBytesToProtect, NewAccessProtection, OldAccessProtection);
-}
-
-NTSTATUS NTAPI HookedNtWriteVirtualMemory(HANDLE ProcessHandle, PVOID BaseAddress, LPCVOID Buffer, SIZE_T BufferSize, PSIZE_T NumberOfBytesWritten)
-{
     WaitForSingleObject(Mutex5, INFINITE);
     if (GetProcessId(ProcessHandle) == GetCurrentProcessId())
     {
-        if ((int)(BaseAddress) == (int)(NtCreateFileAddress) || (int)(BaseAddress) == (int)(NtResumeThreadAddress) || (int)(BaseAddress) == (int)(NtSetValueKeyAddress) || (int)(BaseAddress) == (int)(NtWriteVirtualMemory) || (int)(BaseAddress) == (int)(NtProtectVirtualMemory))
+        if ((int)(*BaseAddress) == (int)(NtCreateFileAddress) || (int)(*BaseAddress) == (int)(NtOpenFileAddress) || (int)(*BaseAddress) == (int)(NtResumeThreadAddress) || (int)(*BaseAddress) == (int)(NtSetValueKeyAddress) || (int)(*BaseAddress) == (int)(NtWriteVirtualMemory) || (int)(*BaseAddress) == (int)(NtProtectVirtualMemory))
         {
             ReleaseMutex(Mutex5);
             return STATUS_ACCESS_DENIED;
         }
     }
     ReleaseMutex(Mutex5);
+    return OriginalNtProtectVirtualMemory(ProcessHandle, BaseAddress, NumberOfBytesToProtect, NewAccessProtection, OldAccessProtection);
+}
+
+NTSTATUS NTAPI HookedNtWriteVirtualMemory(HANDLE ProcessHandle, PVOID BaseAddress, LPCVOID Buffer, SIZE_T BufferSize, PSIZE_T NumberOfBytesWritten)
+{
+    WaitForSingleObject(Mutex6, INFINITE);
+    if (GetProcessId(ProcessHandle) == GetCurrentProcessId())
+    {
+        if ((int)(BaseAddress) == (int)(NtCreateFileAddress) || (int)(BaseAddress) == (int)(NtResumeThreadAddress) || (int)(BaseAddress) == (int)(NtSetValueKeyAddress) || (int)(BaseAddress) == (int)(NtWriteVirtualMemory) || (int)(BaseAddress) == (int)(NtProtectVirtualMemory))
+        {
+            ReleaseMutex(Mutex6);
+            return STATUS_ACCESS_DENIED;
+        }
+    }
+    ReleaseMutex(Mutex6);
     return OriginalNtWriteVirtualMemory(ProcessHandle, BaseAddress, Buffer, BufferSize, NumberOfBytesWritten);
 }
 
 void CheckHook()
 {
     NtCreateFileAddress = GetProcAddress(GetModuleHandleW(L"ntdll.dll"), "NtCreateFile");
+    NtOpenFileAddress = GetProcAddress(GetModuleHandleW(L"ntdll.dll"), "NtOpenFile");
     NtResumeThreadAddress = GetProcAddress(GetModuleHandleW(L"ntdll.dll"), "NtResumeThread");
     NtSetValueKeyAddress = GetProcAddress(GetModuleHandleW(L"ntdll.dll"), "NtSetValueKey");
     NtWriteVirtualMemory = GetProcAddress(GetModuleHandleW(L"ntdll.dll"), "NtWriteVirtualMemory");
     NtProtectVirtualMemory = GetProcAddress(GetModuleHandleW(L"ntdll.dll"), "NtProtectVirtualMemory");
-    const char* Functions[] = { "NtCreateFile", "NtResumeThread", "NtSetValueKey", "NtProtectVirtualMemory", "NtWriteVirtualMemory" };
+    const char* Functions[] = { "NtCreateFile", "NtOpenFile", "NtResumeThread", "NtSetValueKey", "NtProtectVirtualMemory", "NtWriteVirtualMemory" };
     const int Size = sizeof(Functions) / sizeof(Functions[0]);
     while (true)
     {
@@ -440,6 +468,8 @@ void HookingThread()
         DetourUpdateThread(GetCurrentThread());
         OriginalNtCreateFile = reinterpret_cast<RealNtCreateFile>(DetourFindFunction("ntdll.dll", "NtCreateFile"));
         DetourAttach(&(LPVOID&)OriginalNtCreateFile, HookedNtCreateFile);
+        OriginalNtOpenFile = reinterpret_cast<RealNtOpenFile>(DetourFindFunction("ntdll.dll", "NtOpenFile"));
+        DetourAttach(&(LPVOID&)OriginalNtOpenFile, HookedNtOpenFile);
         if (!Mini)
         {
             OriginalNtResumeThread = reinterpret_cast<RealNtResumeThread>(DetourFindFunction("ntdll.dll", "NtResumeThread"));
