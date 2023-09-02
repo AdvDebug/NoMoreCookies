@@ -47,29 +47,39 @@ namespace NoMoreCookiesInstaller
             return false;
         }
 
-        public static string NMCType()
+        public static string NMCType(bool SecureBoot)
         {
-            if(IsSecureBootEnabled())
+            if(SecureBoot)
             {
                 return "NoMoreCookies Service";
             }
             return "AppInit_DLLs";
         }
 
-        static string Version = "2.0";
+        static string Version = "2.2";
 
         static void Main(string[] args)
         {
             Console.Write("Checking for updates... ");
             VersionChecker.CheckVersion(Version);
             bool SecureBoot = IsSecureBootEnabled();
+            ConsoleColor Color = Console.BackgroundColor;
             if (!Environment.Is64BitOperatingSystem)
-                Console.Write("Please Notice that NoMoreCookies are not tested on x86 systems and may cause bugs.\n");
+            {
+                Console.BackgroundColor = ConsoleColor.DarkYellow;
+                Console.Write("Please Notice that NoMoreCookies are not tested on x86 systems and may cause bugs.\n\n");
+                Console.BackgroundColor = Color;
+            }
             if (SecureBoot)
-                Console.Write("NoMoreCookies Noticed that you have SecureBoot Enabled, you can still install NoMoreCookies but bugs in the installer or the protection may occur as it doesn't fully Support SecureBoot yet.\n\n");
+            {
+                Console.BackgroundColor = ConsoleColor.DarkRed;
+                Console.Write("NoMoreCookies Noticed that you have SecureBoot Enabled, you can still install NoMoreCookies but bugs in the installer may occur and the protection will be much less effective as it doesn't fully Support SecureBoot yet, it's recommended to disable SecureBoot to use NoMoreCookies.\n\n");
+                Console.BackgroundColor = Color;
+            }
             Console.Title = "NoMoreCookies Installer";
             Console.Write("Welcome to NoMoreCookies Installer!\n\n");
-            Console.Write($"1. Install MiniNoMoreCookies (The Most compatible version that support nearly all programs, games, and software but provides the most minimal protection but works for most automated stealers)\n\n2. Install NoMoreCookies (Compatible with most programs and games, only hooks Non-Signed Programs and Non-Services Processes and provides additional anti-unhooking and anti-tamper protection and automatically injects NoMoreCookies into programs and the child processes of those programs without relying much on {NMCType()})\n\n3. Install XNoMoreCookies (Hooks all programs except services, also provides anti-unhooking and anti-tamper and automatically injects NoMoreCookies into programs and the child processes of those programs without relying much on {NMCType()}, recommended for maximum security, but may break some programs)\n\n4. Uninstall NoMoreCookies\n\nOption: ");
+            string InstallationType = NMCType(SecureBoot);
+            Console.Write($"1. Install MiniNoMoreCookies (The Most compatible version that support nearly all programs, games, and software but provides the most minimal protection but works for most automated stealers)\n\n2. Install NoMoreCookies (Compatible with most programs and games, only hooks Non-Signed Programs and Non-Services Processes and provides additional anti-unhooking and anti-tamper protection and automatically injects NoMoreCookies into programs and the child processes of those programs without relying much on {InstallationType})\n\n3. Install XNoMoreCookies (Hooks all programs except services, also provides anti-unhooking and anti-tamper and automatically injects NoMoreCookies into programs and the child processes of those programs without relying much on {InstallationType}, recommended for maximum security but may break some programs)\n\n4. Uninstall NoMoreCookies\n\nOption: ");
             string Option = Console.ReadLine();
             try
             {
@@ -523,8 +533,11 @@ namespace NoMoreCookiesInstaller
                                     File.Copy(Environment.CurrentDirectory + "\\Components\\NoMoreCookiesService.exe", NoMoreCookiesServicex86Machine);
                                     if (Option == "1")
                                     {
+                                        File.WriteAllText("C:\\Windows\\System32\\NoMoreConfig.txt", "XMode: Mini");
+                                    }
+                                    else if (Option == "2")
+                                    {
                                         File.WriteAllText("C:\\Windows\\System32\\NoMoreConfig.txt", "XMode: Disabled");
-
                                     }
                                     else if (Option == "2")
                                     {
