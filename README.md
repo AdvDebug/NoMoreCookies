@@ -34,7 +34,11 @@ Supported Browsers:
 * <a href="https://www.waterfox.net">Waterfox</a>
 * <a href="https://vivaldi.com">Vivaldi</a>
 #### Installation 
-you can find the release <a href="https://github.com/AdvDebug/NoMoreCookies/releases/tag/NoMoreCookies_2.2">here</a>, after you extract the files execute NoMoreCookiesInstaller.exe which will give you the option to both install and uninstall NoMoreCookies, and after installing/uninstalling it's preferred to restart your system.
+you can find the release <a href="https://github.com/AdvDebug/NoMoreCookies/releases/tag/NoMoreCookies_2.2">here</a>, after you extract the files execute NoMoreCookiesInstaller.exe which will give you the option to both install and uninstall NoMoreCookies, and after installing/uninstalling.
+
+<a href="#installation"><img src="https://github.com/AdvDebug/NoMoreCookies/blob/main/NoMoreCookiesInstaller.PNG?raw=true"></img></a>
+
+in the installer you can see all options and what each one does so you can choose whatever suits you.
 
 #### Showcase
 if any Stealer/RAT tried to access your browser files you would get a notification, preventing the Stealer/RAT from accessing it and warning you about it.
