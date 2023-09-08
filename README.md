@@ -38,7 +38,7 @@ you can find the release <a href="https://github.com/AdvDebug/NoMoreCookies/rele
 
 <a href="#installation"><img src="https://github.com/AdvDebug/NoMoreCookies/blob/main/NoMoreCookiesInstaller.PNG?raw=true"></img></a>
 
-in the installer you can see all options and what each one does so you can choose whatever suits you, and after installation/uninstallation it's recommended to restart your system so that the protection are fully gone.
+in the installer you can see all options and what each one does so you can choose whatever suits you, and after installation/uninstallation it's recommended to restart your system so that the protection are fully activated/gone.
 
 #### Showcase
 if any Stealer/RAT tried to access your browser files you would get a notification, preventing the Stealer/RAT from accessing it and warning you about it.
