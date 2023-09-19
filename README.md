@@ -21,7 +21,7 @@ Works by hooking NtCreateFile & NtOpenFile and prevent accessing browser files, 
 * Vidar
 * RedLine
 
-and it should work against other popular stealers. and please note that this protection doesn't only work with these listed above, it will work with feature stealers as well as this protection is universal and not targeted against a specific kind/family of malware.
+and it should work against other popular stealers. and please note that this protection doesn't only work with these listed above, it will work with feature stealers as well as this protection is universal and not targeted against a specific kind/family of stealers.
 
 Supported Browsers:
 
