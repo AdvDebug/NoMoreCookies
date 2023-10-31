@@ -10,6 +10,7 @@ Works by hooking NtCreateFile & NtOpenFile and prevent accessing browser files, 
 * <a href="https://github.com/NYAN-x-CAT/AsyncRAT-C-Sharp">AsyncRAT</a>
 * <a href="https://github.com/quasar/Quasar">Quasar RAT</a>
 * <a href="https://github.com/swagkarna/StormKitty">StormKitty</a>
+* <a href="https://github.com/moonD4rk/HackBrowserData">HackBrowserData</a>
 * <a href="https://github.com/LimerBoy/FireFox-Thief">FireFox-Thief</a>
 * <a href="https://github.com/qwqdanchun/DcRat">DcRat</a>
 * <a href="https://github.com/Blank-c/Umbral-Stealer">Umbral Stealer</a>
