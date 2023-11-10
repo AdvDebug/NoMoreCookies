@@ -1,3 +1,6 @@
+# End of support ⚠️
+as the 10th of november 2023, the project is now archived and will no longer be worked on because of the time that is needed to maintain this project and testing it on VMware in a not-so-good pc.
+
 # NoMoreCookies
 <p align="center">
 <a href="#"><img src="https://github.com/AdvDebug/NoMoreCookies/blob/main/NoMoreCookiesNew.jpg" height="200"></a>
