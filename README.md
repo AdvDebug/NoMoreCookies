@@ -6,7 +6,7 @@ the project is now archived and will no longer be worked on because of the time 
 <a href="#"><img src="https://github.com/AdvDebug/NoMoreCookies/blob/main/NoMoreCookiesNew.jpg" height="200"></a>
 </p>
 <p align="center">
-Browser Protector against various stealers, written in C# & C/C++. (Just a small note, please don't use this protection in a SecureBoot-Enabled environment yet as this protection doesn't fully support SecureBoot yet and may cause problems, also this protection is in UM which means it can be bypassed but it's still a pretty good enough solution)
+Browser Protector against various stealers, written in C# & C/C++. (Just a small note, please don't use this protection in a SecureBoot-Enabled environment yet as this protection doesn't fully support SecureBoot yet and may cause problems, also this protection is in UM which means it can be bypassed but it's still a pretty good solution)
 </p>
 
 Works by hooking NtCreateFile & NtOpenFile and prevent accessing browser files, and also protects the browser memory if you choosed the "X Mode", in addition to prevent some types of unhooking. compatible with various games and software. (contributions are very welcomed)
