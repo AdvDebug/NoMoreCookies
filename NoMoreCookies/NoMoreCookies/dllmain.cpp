@@ -11,40 +11,120 @@
 #include <shellapi.h>
 #include <fileapi.h>
 #include <filesystem>
+#include <unordered_map>
+#include <tchar.h>
+#include <algorithm>
 #pragma comment(lib, "wintrust.lib")
 #pragma comment(lib, "advapi32.lib")
 #pragma comment(lib, "shell32.lib")
 #pragma comment(lib, "version.lib")
 #pragma comment(lib, "amsi.lib")
+#pragma comment(lib, "crypt32.lib")
 #define STATUS_ACCESS_DENIED 0xC0000022
-
 typedef NTSTATUS(NTAPI* RealNtCreateFile)(PHANDLE, ACCESS_MASK, POBJECT_ATTRIBUTES, PIO_STATUS_BLOCK, PLARGE_INTEGER, ULONG, ULONG, ULONG, ULONG, PVOID, ULONG);
 typedef NTSTATUS(NTAPI* RealNtOpenFile)(PHANDLE, ACCESS_MASK, POBJECT_ATTRIBUTES, PIO_STATUS_BLOCK, ULONG, ULONG);
 typedef NTSTATUS(NTAPI* RealNtResumeThread)(HANDLE, PULONG);
 typedef NTSTATUS(NTAPI* RealNtSetValueKey)(HANDLE, PUNICODE_STRING, ULONG, ULONG, PVOID, ULONG);
 typedef NTSTATUS(NTAPI* RealNtProtectVirtualMemory)(HANDLE, PVOID*, PULONG, ULONG, PULONG);
 typedef NTSTATUS(NTAPI* RealNtWriteVirtualMemory)(HANDLE, PVOID, LPCVOID, SIZE_T, PSIZE_T);
+typedef DWORD(WINAPI* RealCreateProcessInternalW)(DWORD, LPCTSTR, LPTSTR, LPSECURITY_ATTRIBUTES, LPSECURITY_ATTRIBUTES, BOOL, DWORD, LPVOID, LPCTSTR, LPSTARTUPINFO, LPPROCESS_INFORMATION, DWORD);
+typedef NTSTATUS(WINAPI* RealNtDeleteValueKey)(HANDLE, PUNICODE_STRING);
+typedef NTSTATUS(NTAPI* RealNtReadVirtualMemory)(HANDLE, PVOID, PVOID, ULONG, PULONG);
 HANDLE Mutex = CreateMutex(NULL, FALSE, NULL);
 HANDLE Mutex2 = CreateMutex(NULL, FALSE, NULL);
 HANDLE Mutex3 = CreateMutex(NULL, FALSE, NULL);
 HANDLE Mutex4 = CreateMutex(NULL, FALSE, NULL);
 HANDLE Mutex5 = CreateMutex(NULL, FALSE, NULL);
 HANDLE Mutex6 = CreateMutex(NULL, FALSE, NULL);
-BOOL XMode = FALSE; //you set the mode you want
-BOOL Mini = TRUE; //Mini Mode FALSE/TRUE
+HANDLE Mutex7 = CreateMutex(NULL, FALSE, NULL);
+HANDLE Mutex8 = CreateMutex(NULL, FALSE, NULL);
+BOOL XMode = TRUE; //you set the mode you want
+BOOL Mini = FALSE; //Mini Mode FALSE/TRUE
 HMODULE Module = NULL;
 HANDLE ProtectionThread = NULL;
 HANDLE WatchingThread = NULL;
 BOOL WatchThread = FALSE;
+BOOL Signed = FALSE;
+BOOL Signed2 = FALSE;
 
 RealNtCreateFile OriginalNtCreateFile = nullptr;
 RealNtOpenFile OriginalNtOpenFile = nullptr;
 RealNtResumeThread OriginalNtResumeThread = nullptr;
 RealNtSetValueKey OriginalNtSetValueKey = nullptr;
+RealCreateProcessInternalW OriginalCreateProcessInternalW = nullptr;
+RealNtDeleteValueKey OriginalNtDeleteValueKey = nullptr;
 RealNtProtectVirtualMemory OriginalNtProtectVirtualMemory = nullptr;
 RealNtWriteVirtualMemory OriginalNtWriteVirtualMemory = nullptr;
+RealNtReadVirtualMemory OriginalNtReadVirtualMemory = nullptr;
 
-BOOL IsSigned(HANDLE hProcess)
+LPWSTR GetPublisherName(const wchar_t* FilePath)
+{
+    HCERTSTORE hCertStore = NULL;
+    PCCERT_CONTEXT pCertContext = NULL;
+    DWORD dwEncoding = 0;
+    DWORD dwContentType = 0;
+    DWORD dwFormatType = 0;
+    DWORD dwCertNameSize = 0;
+    LPWSTR szCertName = NULL;
+    HCRYPTMSG Msg = { 0 };
+    PCMSG_SIGNER_INFO pSignerInfo = NULL;
+    CERT_INFO CertInfo;
+    DWORD dwSignerInfo = 0;
+    if (CryptQueryObject(CERT_QUERY_OBJECT_FILE, FilePath, CERT_QUERY_CONTENT_FLAG_PKCS7_SIGNED_EMBED, CERT_QUERY_FORMAT_FLAG_BINARY, 0, &dwEncoding, &dwContentType, &dwFormatType, &hCertStore, &Msg, NULL))
+    {
+        if (CryptMsgGetParam(Msg, CMSG_SIGNER_INFO_PARAM, 0, NULL, &dwSignerInfo))
+        {
+            pSignerInfo = (PCMSG_SIGNER_INFO)LocalAlloc(LPTR, dwSignerInfo);
+            if (CryptMsgGetParam(Msg, CMSG_SIGNER_INFO_PARAM, 0, (PVOID)pSignerInfo, &dwSignerInfo))
+            {
+                CertInfo.Issuer = pSignerInfo->Issuer;
+                CertInfo.SerialNumber = pSignerInfo->SerialNumber;
+                pCertContext = CertFindCertificateInStore(hCertStore, X509_ASN_ENCODING | PKCS_7_ASN_ENCODING, 0, CERT_FIND_SUBJECT_CERT, (PVOID)&CertInfo, NULL);
+                dwCertNameSize = CertGetNameStringW(pCertContext, CERT_NAME_SIMPLE_DISPLAY_TYPE, 0, NULL, NULL, 0);
+                szCertName = (LPWSTR)malloc((dwCertNameSize + 1) * sizeof(WCHAR));
+                CertGetNameStringW(pCertContext, CERT_NAME_SIMPLE_DISPLAY_TYPE, 0, NULL, szCertName, dwCertNameSize);
+                CertFreeCertificateContext(pCertContext);
+                CertCloseStore(hCertStore, 0);
+                LocalFree(pSignerInfo);
+                return szCertName;
+            }
+        }
+    }
+}
+
+bool hasEnding(std::string const& fullString, std::string const& ending)
+{
+    if (fullString.length() >= ending.length())
+    {
+        return (0 == fullString.compare(fullString.length() - ending.length(), ending.length(), ending));
+    }
+    return false;
+}
+
+bool IsBrowser(char* FileName, BOOL FirstTime)
+{
+    const char* Browsers[] = { "msedge.exe", "firefox.exe", "vivaldi.exe", "chrome.exe", "brave.exe", "browser.exe", "opera.exe", "waterfox.exe" };
+    const int Size = sizeof(Browsers) / sizeof(Browsers[0]);
+    if (FirstTime)
+    {
+        for (int i = 0; i < Size; i++)
+        {
+            if (hasEnding(FileName, Browsers[i]))
+                return true;
+        }
+    }
+    else
+    {
+        for (int i = 0; i < Size; i++)
+        {
+            if (hasEnding(FileName, Browsers[i]) && Signed)
+                return true;
+        }
+    }
+    return false;
+}
+
+BOOL IsSigned(HANDLE hProcess, BOOL OnlyBrowsers)
 {
     bool isSigned = false;
     TCHAR szFileName[MAX_PATH];
@@ -69,6 +149,43 @@ BOOL IsSigned(HANDLE hProcess)
         LONG IsSigned = WinVerifyTrust(NULL, &Guid, &TrustData);
         if (IsSigned == ERROR_SUCCESS)
         {
+            if (OnlyBrowsers)
+            {
+                std::wstring Publisher(GetPublisherName(szFileName));
+                if (Publisher.c_str() != NULL)
+                {
+                    BOOL Isbrowser = FALSE;
+                    BOOL IsTrustedPublisher = FALSE;
+                    size_t Size = 0;
+                    wcstombs_s(&Size, NULL, 0, szFileName, wcslen(szFileName));
+                    char* FileName = (char*)malloc(Size + 1);
+                    wcstombs_s(NULL, FileName, Size + 1, szFileName, wcslen(szFileName));
+                    if (FileName != NULL)
+                    {
+                        if (IsBrowser(FileName, TRUE))
+                            Isbrowser = TRUE;
+                        const wchar_t* PublisherName = Publisher.c_str();
+                        const wchar_t* Publishers[] = { L"mozilla", L"microsoft", L"brave", L"waterfox", L"yandex", L"opera", L"vivaldi" };
+                        int Size2 = sizeof(Publishers) / sizeof(Publishers[0]);
+                        wchar_t LowercasePublisher[100];
+                        wcscpy_s(LowercasePublisher, 256, PublisherName);
+                        for (int i = 0; LowercasePublisher[i] != L'\0'; i++)
+                            LowercasePublisher[i] = towlower(LowercasePublisher[i]);
+                        for (int i = 0; i < Size2; i++)
+                        {
+                            if (wcsstr(LowercasePublisher, Publishers[i]) != NULL)
+                            {
+                                IsTrustedPublisher = TRUE;
+                                break;
+                            }
+                        }
+                        free(FileName);
+                    }
+                    if (Isbrowser && IsTrustedPublisher)
+                        return TRUE;
+                }
+                return FALSE;
+            }
             return TRUE;
         }
     }
@@ -109,63 +226,17 @@ BOOL IsRunningAsService()
     return IsService;
 }
 
-bool hasEnding(std::string const& fullString, std::string const& ending)
+BOOL IsBlacklistedApp(char* FileName)
 {
-    if (fullString.length() >= ending.length())
-    {
-        return (0 == fullString.compare(fullString.length() - ending.length(), ending.length(), ending));
-    }
-    return false;
-}
-
-bool IsBrowser(char* FileName)
-{
-    BOOL Signed = IsSigned(GetCurrentProcess());
-    if (hasEnding(FileName, "msedge.exe") && Signed)
-    {
+    const char* Blacklisted[] = { "javaw.exe", "py.exe", "python.exe", "pythonw.exe", "explorer.exe", };
+    const int Size = sizeof(Blacklisted) / sizeof(Blacklisted[0]);
+    if (std::string(FileName).find("C:\\Windows\\Microsoft.NET\\Framework") == 0)
         return true;
-    }
-
-    if (hasEnding(FileName, "firefox.exe") && Signed)
+    for (int i = 0; i < Size; i++)
     {
-        return true;
+        if (hasEnding(FileName, Blacklisted[i]) && Signed2)
+            return true;
     }
-    if (hasEnding(FileName, "vivaldi.exe") && Signed)
-    {
-        return true;
-    }
-    if (hasEnding(FileName, "chrome.exe") && Signed)
-    {
-        return true;
-    }
-
-    if (hasEnding(FileName, "brave.exe") && Signed)
-    {
-        return true;
-    }
-
-    if (hasEnding(FileName, "browser.exe") && Signed)
-    {
-        return true;
-    }
-
-    if (hasEnding(FileName, "opera.exe") && Signed)
-    {
-        return true;
-    }
-
-    if (hasEnding(FileName, "waterfox.exe") && Signed)
-    {
-        return true;
-    }
-
-    return false;
-}
-
-BOOL IsBlacklistedApp(char* FileName, BOOL Signed)
-{
-    if (hasEnding(FileName, "javaw.exe") && Signed || hasEnding(FileName, "py.exe") && Signed || hasEnding(FileName, "python.exe") && Signed || hasEnding(FileName, "pythonw.exe") && Signed || hasEnding(FileName, "explorer.exe") && Signed || std::string(FileName).find("C:\\Windows\\Microsoft.NET\\Framework") == 0)
-        return true;
     return false;
 }
 
@@ -173,29 +244,32 @@ BOOL IsProcessAllowed()
 {
     char FileName[MAX_PATH + 1];
     GetModuleFileNameExA(GetCurrentProcess(), NULL, FileName, MAX_PATH);
-    BOOL Signed = IsSigned(GetCurrentProcess());
-    if (XMode)
-    {
-        if (IsBrowser(FileName))
-            return true;
-    }
-    else
-    {
-        if (IsBlacklistedApp(FileName, Signed))
-            return false;
-    }
-    if (XMode)
+    if (IsBlacklistedApp(FileName))
         return false;
     return true;
 }
 
-BOOL IsNoMoreCookiesInstaller()
+std::unordered_map<HANDLE, bool> Cache;
+
+bool IsProcessSigned(HANDLE hProcess, BOOL OnlyBrowsers)
+{
+    auto it = Cache.find(hProcess);
+    if (it != Cache.end())
+    {
+        return it->second;
+    }
+    bool IsSignedProcess = IsSigned(hProcess, OnlyBrowsers);
+    Cache[hProcess] = IsSignedProcess;
+    return IsSignedProcess;
+}
+
+BOOL IsNoMoreCookiesInstaller(HANDLE hProcess)
 {
     unsigned int Sum = 0;
     char Buffer[1024];
     DWORD BytesRead;
     WCHAR FileName[MAX_PATH + 1];
-    if (!K32GetModuleFileNameExW(GetCurrentProcess(), NULL, FileName, MAX_PATH))
+    if (!K32GetModuleFileNameExW(hProcess, NULL, FileName, MAX_PATH))
         return false;
     HANDLE hFile = CreateFile(FileName, GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
     if (hFile != INVALID_HANDLE_VALUE)
@@ -207,9 +281,10 @@ BOOL IsNoMoreCookiesInstaller()
                 Sum += Buffer[i];
             }
         }
+        CloseHandle(hFile);
         WCHAR CheckSum[9];
         swprintf_s(CheckSum, 9, L"%08X", Sum);
-        if (wcscmp(CheckSum, L"000CB710") == 0)
+        if (wcscmp(CheckSum, L"0010494B") == 0)
         {
             return TRUE;
         }
@@ -322,6 +397,21 @@ BOOL IsBlacklistedPath(LPCWSTR FilePath)
     return false;
 }
 
+
+BOOL Isx64Process(HANDLE hProcess)
+{
+    BOOL is64BitProcess = FALSE;
+    IsWow64Process(hProcess, &is64BitProcess);
+    return !is64BitProcess;
+}
+
+BOOL IsSameArch(HANDLE hProcess)
+{
+    if (Isx64Process(GetCurrentProcess()) == Isx64Process(hProcess))
+        return true;
+    return false;
+}
+
 std::wstring ProgramName[256];
 
 BOOL AlreadyShown = FALSE;
@@ -330,13 +420,25 @@ NTSTATUS NTAPI HookedNtCreateFile(PHANDLE FileHandle, ACCESS_MASK DesiredAccess,
     WaitForSingleObject(Mutex, INFINITE);
     if (ObjectAttributes != nullptr && ObjectAttributes->ObjectName != nullptr)
     {
-        std::wstring fileName(ObjectAttributes->ObjectName->Buffer, ObjectAttributes->ObjectName->Length / sizeof(wchar_t));
-        if (IsBlacklistedPath(fileName.c_str()))
+        std::wstring FileName(ObjectAttributes->ObjectName->Buffer, ObjectAttributes->ObjectName->Length / sizeof(wchar_t));
+        if (IsBlacklistedPath(FileName.c_str()))
         {
             if (!AlreadyShown)
             {
-                std::wstring NotificationString(L"NoMoreCookies: A process tried to access a restricted browser path, which was denied successfully.");
-                ShowNotification(NotificationString);
+                if (ProgramName->c_str() != NULL)
+                {
+                    std::wstring NotificationString(L"NoMoreCookies: The process ");
+                    NotificationString.append(L"\"");
+                    NotificationString.append(ProgramName->c_str());
+                    NotificationString.append(L"\"");
+                    NotificationString.append(L" tried to access a restricted browser path, which was denied successfully.");
+                    ShowNotification(NotificationString);
+                }
+                else
+                {
+                    std::wstring NotificationString(L"NoMoreCookies: A Process tried to access a restricted browser path, which was denied successfully.");
+                    ShowNotification(NotificationString);
+                }
                 AlreadyShown = TRUE;
             }
             ReleaseMutex(Mutex);
@@ -347,23 +449,30 @@ NTSTATUS NTAPI HookedNtCreateFile(PHANDLE FileHandle, ACCESS_MASK DesiredAccess,
     return OriginalNtCreateFile(FileHandle, DesiredAccess, ObjectAttributes, IoStatusBlock, AllocationSize, FileAttributes, ShareAccess, CreateDisposition, CreateOptions, EaBuffer, EaLength);
 }
 
-BOOL AlreadyShown2 = FALSE;
 NTSTATUS NTAPI HookedNtOpenFile(PHANDLE FileHandle, ACCESS_MASK DesiredAccess, POBJECT_ATTRIBUTES ObjectAttributes, PIO_STATUS_BLOCK IoStatusBlock, ULONG ShareAccess, ULONG OpenOptions)
 {
     WaitForSingleObject(Mutex2, INFINITE);
     if (ObjectAttributes != nullptr && ObjectAttributes->ObjectName != nullptr)
     {
-        std::wstring fileName(ObjectAttributes->ObjectName->Buffer, ObjectAttributes->ObjectName->Length / sizeof(wchar_t));
-        if (IsBlacklistedPath(fileName.c_str()))
+        std::wstring FileName(ObjectAttributes->ObjectName->Buffer, ObjectAttributes->ObjectName->Length / sizeof(wchar_t));
+        if (IsBlacklistedPath(FileName.c_str()))
         {
-            if (!AlreadyShown2)
+            if (!AlreadyShown)
             {
-                std::wstring NotificationString(L"NoMoreCookies: The process ");
-                NotificationString.append(L"\"");
-                NotificationString.append(ProgramName->c_str());
-                NotificationString.append(L"\"");
-                NotificationString.append(L" tried to access a restricted browser path, which was denied successfully.");
-                ShowNotification(NotificationString);
+                if (ProgramName->c_str() != NULL)
+                {
+                    std::wstring NotificationString(L"NoMoreCookies: The process ");
+                    NotificationString.append(L"\"");
+                    NotificationString.append(ProgramName->c_str());
+                    NotificationString.append(L"\"");
+                    NotificationString.append(L" tried to access a restricted browser path, which was denied successfully.");
+                    ShowNotification(NotificationString);
+                }
+                else
+                {
+                    std::wstring NotificationString(L"NoMoreCookies: A Process tried to access a restricted browser path, which was denied successfully.");
+                    ShowNotification(NotificationString);
+                }
                 AlreadyShown = TRUE;
             }
             ReleaseMutex(Mutex2);
@@ -374,23 +483,36 @@ NTSTATUS NTAPI HookedNtOpenFile(PHANDLE FileHandle, ACCESS_MASK DesiredAccess, P
     return OriginalNtOpenFile(FileHandle, DesiredAccess, ObjectAttributes, IoStatusBlock, ShareAccess, OpenOptions);
 }
 
+BOOL Inject(int PID)
+{
+    HANDLE hProcess = OpenProcess(PROCESS_ALL_ACCESS, FALSE, PID);
+    if (IsSameArch(hProcess))
+    {
+        char DllPath[MAX_PATH];
+        GetModuleFileNameA(Module, DllPath, MAX_PATH);
+        LPVOID LoadLibraryAddress = GetProcAddress(GetModuleHandle(L"kernel32.dll"), "LoadLibraryA");
+        if (LoadLibraryAddress != NULL)
+        {
+            LPVOID Allocation = VirtualAllocEx(hProcess, NULL, strlen(DllPath), MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE);
+            WriteProcessMemory(hProcess, Allocation, DllPath, strlen(DllPath), NULL);
+            HANDLE InjectionThread = CreateRemoteThread(hProcess, NULL, NULL, (LPTHREAD_START_ROUTINE)LoadLibraryAddress, Allocation, 0, NULL);
+            WaitForSingleObject(InjectionThread, INFINITE);
+            VirtualFreeEx(hProcess, Allocation, strlen(DllPath), MEM_RELEASE);
+            CloseHandle(InjectionThread);
+            CloseHandle(hProcess);
+            return true;
+        }
+    }
+    return false;
+}
+
 NTSTATUS NTAPI HookedNtResumeThread(HANDLE Thread, PULONG SuspendCount)
 {
     WaitForSingleObject(Mutex3, INFINITE);
     DWORD PID = GetProcessIdOfThread(Thread);
     if (PID != GetCurrentProcessId())
     {
-        HANDLE hProcess = OpenProcess(PROCESS_ALL_ACCESS, FALSE, PID);
-        char DllPath[MAX_PATH];
-        GetModuleFileNameA(Module, DllPath, MAX_PATH);
-        LPVOID LoadLibraryAddress = (LPVOID)GetProcAddress(GetModuleHandleA("kernel32.dll"), "LoadLibraryA");
-        LPVOID Allocation = VirtualAllocEx(hProcess, NULL, strlen(DllPath), MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE);
-        WriteProcessMemory(hProcess, Allocation, DllPath, strlen(DllPath), NULL);
-        HANDLE InjectionThread = CreateRemoteThread(hProcess, NULL, NULL, (LPTHREAD_START_ROUTINE)LoadLibraryAddress, Allocation, 0, NULL);
-        WaitForSingleObject(InjectionThread, INFINITE);
-        VirtualFreeEx(hProcess, Allocation, strlen(DllPath), MEM_RELEASE);
-        CloseHandle(InjectionThread);
-        CloseHandle(hProcess);
+        Inject(PID);
     }
     ReleaseMutex(Mutex3);
     return OriginalNtResumeThread(Thread, SuspendCount);
@@ -408,12 +530,26 @@ NTSTATUS NTAPI HookedNtSetValueKey(HANDLE KeyHandle, PUNICODE_STRING ValueName, 
     return OriginalNtSetValueKey(KeyHandle, ValueName, TitleIndex, Type, Data, DataSize);
 }
 
+NTSTATUS NTAPI HookedNtDeleteValueKey(HANDLE KeyHandle, PUNICODE_STRING ValueName)
+{
+    WaitForSingleObject(Mutex7, INFINITE);
+    if (wcsstr(ValueName->Buffer, L"AppInit_DLLs") || wcsstr(ValueName->Buffer, L"LoadAppInit_DLLs"))
+    {
+        ReleaseMutex(Mutex7);
+        return STATUS_ACCESS_DENIED;
+    }
+    ReleaseMutex(Mutex7);
+    return OriginalNtDeleteValueKey(KeyHandle, ValueName);
+}
+
 FARPROC NtCreateFileAddress = NULL;
 FARPROC NtOpenFileAddress = NULL;
 FARPROC NtResumeThreadAddress = NULL;
 FARPROC NtSetValueKeyAddress = NULL;
-FARPROC NtWriteVirtualMemory = NULL;
-FARPROC NtProtectVirtualMemory = NULL;
+FARPROC NtDeleteValueKeyAddress = NULL;
+FARPROC NtWriteVirtualMemoryAddress = NULL;
+FARPROC NtProtectVirtualMemoryAddress = NULL;
+FARPROC NtReadVirtualMemoryAddress = NULL;
 LPVOID NtdllBaseAddress = NULL;
 
 NTSTATUS NTAPI HookedNtProtectVirtualMemory(HANDLE ProcessHandle, PVOID* BaseAddress, PULONG NumberOfBytesToProtect, ULONG NewAccessProtection, PULONG OldAccessProtection)
@@ -421,7 +557,7 @@ NTSTATUS NTAPI HookedNtProtectVirtualMemory(HANDLE ProcessHandle, PVOID* BaseAdd
     WaitForSingleObject(Mutex5, INFINITE);
     if (GetProcessId(ProcessHandle) == GetCurrentProcessId())
     {
-        if ((int)(*BaseAddress) == (int)(NtCreateFileAddress) || (int)(*BaseAddress) == (int)(NtOpenFileAddress) || (int)(*BaseAddress) == (int)(NtResumeThreadAddress) || (int)(*BaseAddress) == (int)(NtSetValueKeyAddress) || (int)(*BaseAddress) == (int)(NtdllBaseAddress) || (int)(*BaseAddress) == (int)(NtWriteVirtualMemory) || (int)(*BaseAddress) == (int)(NtProtectVirtualMemory))
+        if ((int)(*BaseAddress) == (int)(NtCreateFileAddress) || (int)(*BaseAddress) == (int)(NtOpenFileAddress) || (int)(*BaseAddress) == (int)(NtResumeThreadAddress) || (int)(*BaseAddress) == (int)(NtSetValueKeyAddress) || (int)(*BaseAddress) == (int)(NtDeleteValueKeyAddress) || (int)(*BaseAddress) == (int)(NtdllBaseAddress) || (int)(*BaseAddress) == (int)(NtWriteVirtualMemoryAddress) || (int)(*BaseAddress) == (int)(NtProtectVirtualMemoryAddress) || (int)(*BaseAddress) == (int)(NtReadVirtualMemoryAddress))
         {
             ReleaseMutex(Mutex5);
             return STATUS_ACCESS_DENIED;
@@ -431,19 +567,116 @@ NTSTATUS NTAPI HookedNtProtectVirtualMemory(HANDLE ProcessHandle, PVOID* BaseAdd
     return OriginalNtProtectVirtualMemory(ProcessHandle, BaseAddress, NumberOfBytesToProtect, NewAccessProtection, OldAccessProtection);
 }
 
+BOOL AlreadyShown2 = FALSE;
+
 NTSTATUS NTAPI HookedNtWriteVirtualMemory(HANDLE ProcessHandle, PVOID BaseAddress, LPCVOID Buffer, SIZE_T BufferSize, PSIZE_T NumberOfBytesWritten)
 {
     WaitForSingleObject(Mutex6, INFINITE);
     if (GetProcessId(ProcessHandle) == GetCurrentProcessId())
     {
-        if ((int)(BaseAddress) == (int)(NtCreateFileAddress) || (int)(BaseAddress) == (int)(NtResumeThreadAddress) || (int)(BaseAddress) == (int)(NtSetValueKeyAddress) || (int)(BaseAddress) == (int)(NtWriteVirtualMemory) || (int)(BaseAddress) == (int)(NtProtectVirtualMemory))
+        if ((int)(BaseAddress) == (int)(NtCreateFileAddress) || (int)(BaseAddress) == (int)(NtResumeThreadAddress) || (int)(BaseAddress) == (int)(NtSetValueKeyAddress) || (int)(BaseAddress) == (int)(NtDeleteValueKeyAddress) || (int)(BaseAddress) == (int)(NtWriteVirtualMemoryAddress) || (int)(BaseAddress) == (int)(NtProtectVirtualMemoryAddress) || (int)(BaseAddress) == (int)(NtReadVirtualMemoryAddress))
         {
             ReleaseMutex(Mutex6);
             return STATUS_ACCESS_DENIED;
         }
     }
+    else if (XMode && !Signed2)
+    {
+        if (IsProcessSigned(ProcessHandle, XMode))
+        {
+            wchar_t ImageFileName[MAX_PATH + 1];
+            if (GetProcessImageFileName(ProcessHandle, ImageFileName, MAX_PATH))
+            {
+                std::wstring ProcessName(ImageFileName);
+                size_t LastSlash = ProcessName.find_last_of(L"\\");
+                if (LastSlash != std::wstring::npos) {
+                    ProcessName = ProcessName.substr(LastSlash + 1);
+                }
+                const wchar_t* Browsers[] = { L"msedge.exe", L"firefox.exe", L"vivaldi.exe", L"chrome.exe", L"brave.exe", L"browser.exe", L"opera.exe", L"waterfox.exe" };
+                const int Size = sizeof(Browsers) / sizeof(Browsers[0]);
+                for (int i = 0; i < Size; i++)
+                {
+                    if (ProcessName.rfind(Browsers[i], 0) == 0)
+                    {
+                        if (!AlreadyShown2)
+                        {
+                            if (ProgramName->c_str() != NULL)
+                            {
+                                std::wstring NotificationString(L"NoMoreCookies: The process ");
+                                NotificationString.append(L"\"");
+                                NotificationString.append(ProgramName->c_str());
+                                NotificationString.append(L"\"");
+                                NotificationString.append(L" tried to write to the browser memory, which has been denied successfully.");
+                                ShowNotification(NotificationString);
+                            }
+                            else
+                            {;
+                                std::wstring NotificationString(L"NoMoreCookies: A Process tried to read the browser memory, which have been denied successfully.");
+                                ShowNotification(NotificationString);
+                            }
+                            AlreadyShown2 = TRUE;
+                        }
+                        ReleaseMutex(Mutex6);
+                        return STATUS_ACCESS_DENIED;
+                    }
+                }
+            }
+        }
+    }
     ReleaseMutex(Mutex6);
     return OriginalNtWriteVirtualMemory(ProcessHandle, BaseAddress, Buffer, BufferSize, NumberOfBytesWritten);
+}
+
+BOOL AlreadyShown3 = FALSE;
+
+NTSTATUS NTAPI HookedNtReadVirtualMemory(HANDLE ProcessHandle, PVOID BaseAddress, PVOID Buffer, ULONG NumberOfBytesToRead, PULONG NumberOfBytesRead)
+{
+    WaitForSingleObject(Mutex8, INFINITE);
+    if (GetProcessId(ProcessHandle) != GetCurrentProcessId())
+    {
+        if (IsProcessSigned(ProcessHandle, XMode))
+        {
+            wchar_t ImageFileName[MAX_PATH + 1];
+            if (GetProcessImageFileName(ProcessHandle, ImageFileName, MAX_PATH))
+            {
+                std::wstring ProcessName(ImageFileName);
+                size_t LastSlash = ProcessName.find_last_of(L"\\");
+                if (LastSlash != std::wstring::npos) {
+                    ProcessName = ProcessName.substr(LastSlash + 1);
+                }
+                const wchar_t* Browsers[] = { L"msedge.exe", L"firefox.exe", L"vivaldi.exe", L"chrome.exe", L"brave.exe", L"browser.exe", L"opera.exe", L"waterfox.exe" };
+                const int Size = sizeof(Browsers) / sizeof(Browsers[0]);
+                for (int i = 0; i < Size; i++)
+                {
+                    if (ProcessName.rfind(Browsers[i], 0) == 0)
+                    {
+                        if (!AlreadyShown3)
+                        {
+                            if (ProgramName->c_str() != NULL)
+                            {
+                                std::wstring NotificationString(L"NoMoreCookies: The process ");
+                                NotificationString.append(L"\"");
+                                NotificationString.append(ProgramName->c_str());
+                                NotificationString.append(L"\"");
+                                NotificationString.append(L" tried to read the browser memory, which has been denied successfully.");
+                                ShowNotification(NotificationString);
+                            }
+                            else
+                            {
+                                std::wstring NotificationString(L"NoMoreCookies: A Process tried to read the browser memory, which have been denied successfully.");
+                                ShowNotification(NotificationString);
+                            }
+                            AlreadyShown3 = TRUE;
+                        }
+                        ReleaseMutex(Mutex8);
+                        return STATUS_ACCESS_DENIED;
+                    }
+                }
+            }
+        }
+    }
+    ReleaseMutex(Mutex8);
+    return OriginalNtReadVirtualMemory(ProcessHandle, BaseAddress, Buffer, NumberOfBytesToRead, NumberOfBytesRead);
 }
 
 void ForceExit()
@@ -460,8 +693,10 @@ void VarsInitThread()
     NtOpenFileAddress = GetProcAddress(GetModuleHandleW(L"ntdll.dll"), "NtOpenFile");
     NtResumeThreadAddress = GetProcAddress(GetModuleHandleW(L"ntdll.dll"), "NtResumeThread");
     NtSetValueKeyAddress = GetProcAddress(GetModuleHandleW(L"ntdll.dll"), "NtSetValueKey");
-    NtWriteVirtualMemory = GetProcAddress(GetModuleHandleW(L"ntdll.dll"), "NtWriteVirtualMemory");
-    NtProtectVirtualMemory = GetProcAddress(GetModuleHandleW(L"ntdll.dll"), "NtProtectVirtualMemory");
+    NtDeleteValueKeyAddress = GetProcAddress(GetModuleHandleW(L"ntdll.dll"), "NtDeleteValueKey");
+    NtWriteVirtualMemoryAddress = GetProcAddress(GetModuleHandleW(L"ntdll.dll"), "NtWriteVirtualMemory");
+    NtProtectVirtualMemoryAddress = GetProcAddress(GetModuleHandleW(L"ntdll.dll"), "NtProtectVirtualMemory");
+    NtReadVirtualMemoryAddress = GetProcAddress(GetModuleHandleW(L"ntdll.dll"), "NtReadVirtualMemory");
     HMODULE Ntdll = GetModuleHandle(L"ntdll.dll");
     MODULEINFO Mi = { 0 };
     if (GetModuleInformation(GetCurrentProcess(), Ntdll, &Mi, sizeof(Mi)))
@@ -492,18 +727,42 @@ void VarsInitThread()
 
 void CheckHook()
 {
+    BOOL CheckAll = FALSE;
+    if (XMode && !Signed2)
+        CheckAll = true;
     const char* Functions[] = { "NtCreateFile", "NtOpenFile", "NtResumeThread", "NtSetValueKey", "NtProtectVirtualMemory", "NtWriteVirtualMemory" };
+    const char* FunctionsX[] = { "NtCreateFile", "NtOpenFile", "NtResumeThread", "NtSetValueKey", "NtProtectVirtualMemory", "NtWriteVirtualMemory", "NtDeleteValueKey", "NtReadVirtualMemory"};
     const int Size = sizeof(Functions) / sizeof(Functions[0]);
+    const int SizeX = sizeof(FunctionsX) / sizeof(FunctionsX[0]);
+    DWORD SleepTime = 1000;
+    if (XMode)
+        SleepTime = 500;
     while (true)
     {
-        Sleep(1000);
-        for (int i = 0; i < Size; i++)
+        Sleep(SleepTime);
+        if (CheckAll)
         {
-            FARPROC FunctionAddress = GetProcAddress(GetModuleHandleW(L"ntdll.dll"), Functions[i]);
-            BYTE* StartAddressBytes = (BYTE*)FunctionAddress;
-            if (StartAddressBytes[0] != 0xE9 || StartAddressBytes[0] == 0xCC)
+            for (int i = 0; i < SizeX; i++)
             {
-                ForceExit();
+                HMODULE Module = GetModuleHandleW(L"ntdll.dll");
+                FARPROC FunctionAddress = GetProcAddress(Module, FunctionsX[i]);
+                BYTE* StartAddressBytes = (BYTE*)FunctionAddress;
+                if (StartAddressBytes[0] != 0xE9 || StartAddressBytes[0] == 0xCC)
+                {
+                    ForceExit();
+                }
+            }
+        }
+        else
+        {
+            for (int i = 0; i < Size; i++)
+            {
+                FARPROC FunctionAddress = GetProcAddress(GetModuleHandleW(L"ntdll.dll"), Functions[i]);
+                BYTE* StartAddressBytes = (BYTE*)FunctionAddress;
+                if (StartAddressBytes[0] != 0xE9 || StartAddressBytes[0] == 0xCC)
+                {
+                    ForceExit();
+                }
             }
         }
 
@@ -556,6 +815,13 @@ void HookingThread()
             DetourAttach(&(LPVOID&)OriginalNtResumeThread, HookedNtResumeThread);
             OriginalNtSetValueKey = reinterpret_cast<RealNtSetValueKey>(DetourFindFunction("ntdll.dll", "NtSetValueKey"));
             DetourAttach(&(LPVOID&)OriginalNtSetValueKey, HookedNtSetValueKey);
+            if (XMode && !Signed2)
+            {
+                OriginalNtDeleteValueKey = reinterpret_cast<RealNtDeleteValueKey>(DetourFindFunction("ntdll.dll", "NtDeleteValueKey"));
+                DetourAttach(&(LPVOID&)OriginalNtDeleteValueKey, HookedNtDeleteValueKey);
+                OriginalNtReadVirtualMemory = reinterpret_cast<RealNtReadVirtualMemory>(DetourFindFunction("ntdll.dll", "NtReadVirtualMemory"));
+                DetourAttach(&(LPVOID&)OriginalNtReadVirtualMemory, HookedNtReadVirtualMemory);
+            }
             OriginalNtProtectVirtualMemory = reinterpret_cast<RealNtProtectVirtualMemory>(DetourFindFunction("ntdll.dll", "NtProtectVirtualMemory"));
             DetourAttach(&(LPVOID&)OriginalNtProtectVirtualMemory, HookedNtProtectVirtualMemory);
             OriginalNtWriteVirtualMemory = reinterpret_cast<RealNtWriteVirtualMemory>(DetourFindFunction("ntdll.dll", "NtWriteVirtualMemory"));
@@ -589,25 +855,37 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD ul_reason_for_call, LPVOID lpReserv
         DisableThreadLibraryCalls(hModule);
         if (!IsSandboxedProcess())
         {
-            if (!IsNoMoreCookiesInstaller())
+            if (!IsNoMoreCookiesInstaller(GetCurrentProcess()))
             {
+                Signed = IsSigned(GetCurrentProcess(), XMode);
+                Signed2 = IsSigned(GetCurrentProcess(), FALSE);
                 Module = hModule;
                 if (!XMode)
                 {
-                    if ((!IsProcessAllowed() || !IsSigned(GetCurrentProcess())) && !IsRunningAsService())
+                    if ((!IsProcessAllowed() || !Signed2) && !IsRunningAsService())
                     {
-                        CreateThread(NULL, NULL, (LPTHREAD_START_ROUTINE)HookingThread, NULL, NULL, NULL);
+                        HANDLE hThread = CreateThread(NULL, NULL, (LPTHREAD_START_ROUTINE)HookingThread, NULL, NULL, NULL);
+                        if (hThread != NULL)
+                        {
+                            CloseHandle(hThread);
+                            return TRUE;
+                        }
                     }
                 }
                 else
                 {
-                    if (!IsProcessAllowed() && !IsRunningAsService())
+                    if (!Signed && !IsRunningAsService())
                     {
-                        CreateThread(NULL, NULL, (LPTHREAD_START_ROUTINE)HookingThread, NULL, NULL, NULL);
+                        HANDLE hThread = CreateThread(NULL, NULL, (LPTHREAD_START_ROUTINE)HookingThread, NULL, NULL, NULL);
+                        if (hThread != NULL)
+                        {
+                            CloseHandle(hThread);
+                            return TRUE;
+                        }
                     }
                 }
             }
         }
     }
-    return TRUE;
+    return FALSE;
 }
