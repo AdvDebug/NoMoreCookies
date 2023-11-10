@@ -9,6 +9,7 @@ Browser Protector against various stealers, written in C# & C/C++. (Just a small
 <div>
 Works by hooking NtCreateFile & NtOpenFile and prevent accessing browser files, and also protections the browser memory if you choosed the "X Mode", in addition to prevent some types of unhooking. compatible with various games and software. (contributions are very welcomed)
 </div>
+
 #### Stealers/RATs Tested
 * <a href="https://github.com/NYAN-x-CAT/AsyncRAT-C-Sharp">AsyncRAT</a>
 * <a href="https://github.com/quasar/Quasar">Quasar RAT</a>
