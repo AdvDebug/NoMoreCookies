@@ -37,7 +37,7 @@ Supported Browsers:
 #### Installation 
 you can find the release <a href="https://github.com/AdvDebug/NoMoreCookies/releases/tag/NoMoreCookies_2.2">here</a>, after you extract the files execute NoMoreCookiesInstaller.exe which will give you the option to both install and uninstall NoMoreCookies.
 
-<a href="#installation"><img src="https://github.com/AdvDebug/NoMoreCookies/blob/main/NoMoreCookiesInstaller.PNG?raw=true"></img></a>
+<a href="#installation"><img src="https://github.com/AdvDebug/NoMoreCookies/blob/main/NoMoreCookiesInstallerr.PNG?raw=true"></img></a>
 
 in the installer you can see all options and what each one does so you can choose whatever suits you, and after installation/uninstallation it's recommended to restart your system so that the protection are fully activated/gone.
 
