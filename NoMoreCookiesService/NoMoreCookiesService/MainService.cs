@@ -3,6 +3,7 @@ using System.Diagnostics;
 using System.ServiceProcess;
 using System.Runtime.InteropServices;
 using System.IO;
+using System.Threading;
 
 namespace NoMoreCookiesService
 {
@@ -32,6 +33,9 @@ namespace NoMoreCookiesService
         [DllImport("kernel32.dll", SetLastError = true)]
         private static extern bool VirtualFreeEx(IntPtr ProcessHandle, IntPtr Address, int Size, uint FreeType);
 
+        [DllImport("kernel32.dll", SetLastError = true)]
+        private static extern bool IsWow64Process(IntPtr hProcess, ref bool IsWow64);
+
         public MainService()
         {
             InitializeComponent();
@@ -47,59 +51,95 @@ namespace NoMoreCookiesService
             return length;
         }
 
-        protected override void OnStart(string[] args)
+        bool IsSameArch(Process process)
         {
-            string Config = File.ReadAllText(Environment.CurrentDirectory + "\\NoMoreConfig.txt");
-            string DllPath = null;
-            if (Config == "XMode: Disabled")
+            bool Remote = false;
+            bool Current = false;
+            IntPtr CurrentProcess = Process.GetCurrentProcess().Handle;
+            if (IsWow64Process(process.Handle, ref Remote))
             {
-                if (Environment.Is64BitProcess)
+                if (IsWow64Process(CurrentProcess, ref Current))
                 {
-                    DllPath = @"C:\NoMoreCookies_x64.dll";
-                }
-                else
-                {
-                    DllPath = @"C:\NoMoreCookies.dll";
+                    CloseHandle(CurrentProcess);
+                    if (Current == Remote)
+                        return true;
                 }
             }
-            else if (Config == "XMode: Enabled")
+            return false;
+        }
+
+        protected override void OnStart(string[] args)
+        {
+            Thread.Sleep(10000);
+            string DllPath = null;
+            if (File.Exists(Environment.CurrentDirectory + "\\NoMoreConfig.txt"))
             {
-                if (Environment.Is64BitProcess)
+                string Config = File.ReadAllText(Environment.CurrentDirectory + "\\NoMoreConfig.txt");
+                if (Config == "XMode: Mini")
                 {
-                    DllPath = @"C:\XNoMoreCookies.dll";
+                    if (Environment.Is64BitProcess)
+                    {
+                        DllPath = @"C:\MiniNoMoreCookies_x64.dll";
+                    }
+                    else
+                    {
+                        DllPath = @"C:\MiniNoMoreCookies.dll";
+                    }
                 }
-                else
+                else if (Config == "XMode: Disabled")
                 {
-                    DllPath = @"C:\XNoMoreCookies_x64.dll";
+                    if (Environment.Is64BitProcess)
+                    {
+                        DllPath = @"C:\NoMoreCookies_x64.dll";
+                    }
+                    else
+                    {
+                        DllPath = @"C:\NoMoreCookies.dll";
+                    }
+                }
+                else if (Config == "XMode: Enabled")
+                {
+                    if (Environment.Is64BitProcess)
+                    {
+                        DllPath = @"C:\XNoMoreCookies.dll";
+                    }
+                    else
+                    {
+                        DllPath = @"C:\XNoMoreCookies_x64.dll";
+                    }
                 }
             }
             if (DllPath != null)
             {
-                foreach (Process ProcessInject in Process.GetProcesses())
+                while (true)
                 {
-                    try
+                    Thread.Sleep(500);
+                    foreach (Process ProcessInject in Process.GetProcesses())
                     {
-                        if (ProcessInject.Id != Process.GetCurrentProcess().Id)
+                        try
                         {
-                            IntPtr LoadLibraryA = GetProcAddress(GetModuleHandle("kernel32.dll"), "LoadLibraryA");
-                            IntPtr Allocation = VirtualAllocEx(ProcessInject.Handle, IntPtr.Zero, strlen(DllPath), 0x00001000 | 0x00002000, 0x04);
-                            WriteProcessMemory(ProcessInject.Handle, Allocation, DllPath, strlen(DllPath), 0);
-                            IntPtr RemoteThread = CreateRemoteThread(ProcessInject.Handle, IntPtr.Zero, 0, LoadLibraryA, Allocation, 0, 0);
-                            WaitForSingleObject(RemoteThread, 4000);
-                            VirtualFreeEx(ProcessInject.Handle, Allocation, strlen(DllPath), 0x00008000);
-                            CloseHandle(RemoteThread);
-                            CloseHandle(ProcessInject.Handle);
-
-
+                            if (ProcessInject.Id != Process.GetCurrentProcess().Id)
+                            {
+                                if (IsSameArch(ProcessInject))
+                                {
+                                    IntPtr LoadLibraryA = GetProcAddress(GetModuleHandle("kernel32.dll"), "LoadLibraryA");
+                                    IntPtr Allocation = VirtualAllocEx(ProcessInject.Handle, IntPtr.Zero, strlen(DllPath), 0x00001000 | 0x00002000, 0x04);
+                                    WriteProcessMemory(ProcessInject.Handle, Allocation, DllPath, strlen(DllPath), 0);
+                                    IntPtr RemoteThread = CreateRemoteThread(ProcessInject.Handle, IntPtr.Zero, 0, LoadLibraryA, Allocation, 0, 0);
+                                    WaitForSingleObject(RemoteThread, 4000);
+                                    VirtualFreeEx(ProcessInject.Handle, Allocation, strlen(DllPath), 0x00008000);
+                                    CloseHandle(RemoteThread);
+                                    CloseHandle(ProcessInject.Handle);
+                                }
+                            }
                         }
-                    }
-                    catch
-                    {
-                        continue;
+                        catch
+                        {
+                            continue;
+                        }
                     }
                 }
             }
-            this.Stop();
         }
 
         protected override void OnStop()
