@@ -46,6 +46,7 @@ HANDLE WatchingThread = NULL;
 BOOL WatchThread = FALSE;
 BOOL Signed = FALSE;
 BOOL Signed2 = FALSE;
+BOOL Signed3 = FALSE;
 
 RealNtCreateFile OriginalNtCreateFile = nullptr;
 RealNtOpenFile OriginalNtOpenFile = nullptr;
@@ -226,25 +227,49 @@ BOOL IsRunningAsService()
     return IsService;
 }
 
-BOOL IsBlacklistedApp(char* FileName)
+BOOL IsBlacklistedApp(wchar_t* FileNamez)
 {
-    const char* Blacklisted[] = { "javaw.exe", "py.exe", "python.exe", "pythonw.exe", "explorer.exe", };
-    const int Size = sizeof(Blacklisted) / sizeof(Blacklisted[0]);
-    if (std::string(FileName).find("C:\\Windows\\Microsoft.NET\\Framework") == 0)
-        return true;
-    for (int i = 0; i < Size; i++)
+    if (Signed2)
     {
-        if (hasEnding(FileName, Blacklisted[i]) && Signed2)
-            return true;
+        BOOL IsBlacklistedPublisher = FALSE;
+        std::wstring Publisher(GetPublisherName(FileNamez));
+        if (Publisher.c_str() != NULL)
+        {
+            const wchar_t* PublisherName = Publisher.c_str();
+            const wchar_t* Publishers[] = { L"python", L"oracle" };
+            int Size3 = sizeof(Publishers) / sizeof(Publishers[0]);
+            wchar_t LowercasePublisher[100];
+            wcscpy_s(LowercasePublisher, 256, PublisherName);
+            for (int i = 0; LowercasePublisher[i] != L'\0'; i++)
+                LowercasePublisher[i] = towlower(LowercasePublisher[i]);
+            for (int i = 0; i < Size3; i++)
+            {
+                if (wcsstr(LowercasePublisher, Publishers[i]) != NULL)
+                {
+                    IsBlacklistedPublisher = TRUE;
+                    break;
+                }
+            }
+        }
+        return IsBlacklistedPublisher && Signed2;
     }
+    return false;
+}
+
+BOOL IsExplorer()
+{
+    char FileName[MAX_PATH + 1];
+    GetModuleFileNameExA(GetCurrentProcess(), NULL, FileName, MAX_PATH);
+    if (hasEnding(FileName, "explorer.exe"))
+        return true;
     return false;
 }
 
 BOOL IsProcessAllowed()
 {
-    char FileName[MAX_PATH + 1];
-    GetModuleFileNameExA(GetCurrentProcess(), NULL, FileName, MAX_PATH);
-    if (IsBlacklistedApp(FileName))
+    wchar_t FileName[MAX_PATH + 1];
+    GetModuleFileNameEx(GetCurrentProcess(), NULL, FileName, MAX_PATH);
+    if (IsBlacklistedApp(FileName) || IsExplorer())
         return false;
     return true;
 }
@@ -728,7 +753,7 @@ void VarsInitThread()
 void CheckHook()
 {
     BOOL CheckAll = FALSE;
-    if (XMode && !Signed2)
+    if (XMode && !Signed3)
         CheckAll = true;
     const char* Functions[] = { "NtCreateFile", "NtOpenFile", "NtResumeThread", "NtSetValueKey", "NtProtectVirtualMemory", "NtWriteVirtualMemory" };
     const char* FunctionsX[] = { "NtCreateFile", "NtOpenFile", "NtResumeThread", "NtSetValueKey", "NtProtectVirtualMemory", "NtWriteVirtualMemory", "NtDeleteValueKey", "NtReadVirtualMemory"};
@@ -815,7 +840,7 @@ void HookingThread()
             DetourAttach(&(LPVOID&)OriginalNtResumeThread, HookedNtResumeThread);
             OriginalNtSetValueKey = reinterpret_cast<RealNtSetValueKey>(DetourFindFunction("ntdll.dll", "NtSetValueKey"));
             DetourAttach(&(LPVOID&)OriginalNtSetValueKey, HookedNtSetValueKey);
-            if (XMode && !Signed2)
+            if (!Signed3)
             {
                 OriginalNtDeleteValueKey = reinterpret_cast<RealNtDeleteValueKey>(DetourFindFunction("ntdll.dll", "NtDeleteValueKey"));
                 DetourAttach(&(LPVOID&)OriginalNtDeleteValueKey, HookedNtDeleteValueKey);
@@ -859,10 +884,12 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD ul_reason_for_call, LPVOID lpReserv
             {
                 Signed = IsSigned(GetCurrentProcess(), XMode);
                 Signed2 = IsSigned(GetCurrentProcess(), FALSE);
+                BOOL IsAllowed = IsProcessAllowed();
+                Signed3 = IsSigned(GetCurrentProcess(), FALSE) && IsAllowed;
                 Module = hModule;
                 if (!XMode)
                 {
-                    if ((!IsProcessAllowed() || !Signed2) && !IsRunningAsService())
+                    if ((!IsAllowed || !Signed2) && !IsRunningAsService())
                     {
                         HANDLE hThread = CreateThread(NULL, NULL, (LPTHREAD_START_ROUTINE)HookingThread, NULL, NULL, NULL);
                         if (hThread != NULL)
