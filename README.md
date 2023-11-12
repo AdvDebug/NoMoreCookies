@@ -40,7 +40,7 @@ Supported Browsers:
 * <a href="https://www.waterfox.net">Waterfox</a>
 * <a href="https://vivaldi.com">Vivaldi</a>
 #### Installation 
-you can find the release <a href="https://github.com/AdvDebug/NoMoreCookies/releases/tag/NoMoreCookies_2.3">here</a>, after you extract the files execute NoMoreCookiesInstaller.exe which will give you the option to both install and uninstall NoMoreCookies.
+you can find the release <a href="https://github.com/AdvDebug/NoMoreCookies/releases/latest">here</a>, after you extract the files execute NoMoreCookiesInstaller.exe which will give you the option to both install and uninstall NoMoreCookies.
 
 <a href="#installation"><img src="https://github.com/AdvDebug/NoMoreCookies/blob/main/NoMoreCookiesInstallerr.PNG?raw=true"></img></a>
 
