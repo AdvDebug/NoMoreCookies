@@ -258,10 +258,36 @@ BOOL IsBlacklistedApp(wchar_t* FileNamez)
 
 BOOL IsExplorer()
 {
-    char FileName[MAX_PATH + 1];
-    GetModuleFileNameExA(GetCurrentProcess(), NULL, FileName, MAX_PATH);
-    if (hasEnding(FileName, "explorer.exe"))
-        return true;
+    wchar_t szFileName[MAX_PATH + 1];
+    GetModuleFileNameEx(GetCurrentProcess(), NULL, szFileName, MAX_PATH);
+    if (Signed2)
+    {
+        std::wstring Publisher(GetPublisherName(szFileName));
+        if (Publisher.c_str() != NULL)
+        {
+            size_t Size = 0;
+            wcstombs_s(&Size, NULL, 0, szFileName, wcslen(szFileName));
+            char* FileName = (char*)malloc(Size + 1);
+            wcstombs_s(NULL, FileName, Size + 1, szFileName, wcslen(szFileName));
+            if (FileName != NULL)
+            {
+                BOOL IsMicrosoft = FALSE;
+                const wchar_t* PublisherName = Publisher.c_str();
+                wchar_t Ms[] = L"microsoft";
+                wchar_t LowercasePublisher[100];
+                wcscpy_s(LowercasePublisher, 256, PublisherName);
+                for (int i = 0; LowercasePublisher[i] != L'\0'; i++)
+                    LowercasePublisher[i] = towlower(LowercasePublisher[i]);
+                if (wcsstr(LowercasePublisher, Ms) != NULL)
+                {
+                    IsMicrosoft = TRUE;
+                }
+                if (hasEnding(FileName, "explorer.exe") && IsMicrosoft)
+                    return true;
+            }
+            free(FileName);
+        }
+    }
     return false;
 }
 
@@ -750,10 +776,11 @@ void VarsInitThread()
     }
 }
 
+BOOL All = FALSE;
 void CheckHook()
 {
     BOOL CheckAll = FALSE;
-    if (XMode && !Signed3)
+    if (!Signed3 && All)
         CheckAll = true;
     const char* Functions[] = { "NtCreateFile", "NtOpenFile", "NtResumeThread", "NtSetValueKey", "NtProtectVirtualMemory", "NtWriteVirtualMemory" };
     const char* FunctionsX[] = { "NtCreateFile", "NtOpenFile", "NtResumeThread", "NtSetValueKey", "NtProtectVirtualMemory", "NtWriteVirtualMemory", "NtDeleteValueKey", "NtReadVirtualMemory"};
@@ -840,12 +867,17 @@ void HookingThread()
             DetourAttach(&(LPVOID&)OriginalNtResumeThread, HookedNtResumeThread);
             OriginalNtSetValueKey = reinterpret_cast<RealNtSetValueKey>(DetourFindFunction("ntdll.dll", "NtSetValueKey"));
             DetourAttach(&(LPVOID&)OriginalNtSetValueKey, HookedNtSetValueKey);
-            if (!Signed3 && !IsExplorer())
+            if (!Signed3)
             {
-                OriginalNtDeleteValueKey = reinterpret_cast<RealNtDeleteValueKey>(DetourFindFunction("ntdll.dll", "NtDeleteValueKey"));
-                DetourAttach(&(LPVOID&)OriginalNtDeleteValueKey, HookedNtDeleteValueKey);
-                OriginalNtReadVirtualMemory = reinterpret_cast<RealNtReadVirtualMemory>(DetourFindFunction("ntdll.dll", "NtReadVirtualMemory"));
-                DetourAttach(&(LPVOID&)OriginalNtReadVirtualMemory, HookedNtReadVirtualMemory);
+                BOOL IsExp = IsExplorer();
+                if (!IsExp)
+                {
+                    All = TRUE;
+                    OriginalNtDeleteValueKey = reinterpret_cast<RealNtDeleteValueKey>(DetourFindFunction("ntdll.dll", "NtDeleteValueKey"));
+                    DetourAttach(&(LPVOID&)OriginalNtDeleteValueKey, HookedNtDeleteValueKey);
+                    OriginalNtReadVirtualMemory = reinterpret_cast<RealNtReadVirtualMemory>(DetourFindFunction("ntdll.dll", "NtReadVirtualMemory"));
+                    DetourAttach(&(LPVOID&)OriginalNtReadVirtualMemory, HookedNtReadVirtualMemory);
+                }
             }
             OriginalNtProtectVirtualMemory = reinterpret_cast<RealNtProtectVirtualMemory>(DetourFindFunction("ntdll.dll", "NtProtectVirtualMemory"));
             DetourAttach(&(LPVOID&)OriginalNtProtectVirtualMemory, HookedNtProtectVirtualMemory);
