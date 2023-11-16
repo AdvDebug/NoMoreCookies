@@ -1,6 +1,3 @@
-# End of support ⚠
-the project is now archived and will no longer be worked on because of the time that is needed to maintain this project and testing it on VMware in a not-so-good pc, but it was fun creating this project and work on it, and it will prevent the majority of stealers from stealing your browser data.
-
 # NoMoreCookies
 <p align="center">
 <a href="#"><img src="https://github.com/AdvDebug/NoMoreCookies/blob/main/NoMoreCookiesNew.jpg" height="200"></a>
