@@ -3,6 +3,11 @@
 <a href="#"><img src="https://github.com/AdvDebug/NoMoreCookies/blob/main/NoMoreCookiesNew.jpg" height="200"></a>
 </p>
 <p align="center">
+  <strong>
+    THE TOOL IS CURRENTLY NOT STABLE AND STILL BEING WORKED ON
+  </strong>
+</p>
+<p align="center">
 Browser Protector against various stealers, written in C# & C/C++. (Just a small note, please don't use this protection in a SecureBoot-Enabled environment yet as this protection doesn't fully support SecureBoot yet and may cause problems, also this protection is in UM which means it can be bypassed but it's still a pretty good solution to protect your browser)
 </p>
 
