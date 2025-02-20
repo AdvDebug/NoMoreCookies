@@ -4,7 +4,7 @@
 </p>
 <p align="center">
   <strong>
-    THE TOOL IS CURRENTLY NOT STABLE AND STILL BEING WORKED ON
+    THE TOOL IS CURRENTLY NOT STABLE AND STILL BEING WORKED ON, IT MAY CAUSE CRASHES.
   </strong>
 </p>
 <p align="center">
